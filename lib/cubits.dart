@@ -3,26 +3,22 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-/// FIXME: left off here
-/// - finished cubit setups
-/// - was going to work on Home widget
-///.
-
 /// [Chronos] Cubit keeps track of time and notifies beat changes based on bpm and
 /// beats per measure
 class Chronos extends Cubit<int> {
-  Chronos({required BuildContext context, int first = 0, this.playing = false})
-      : super(validateFirst(first, context.read<ChronosSettings>().beats)) {
-    ChronosSettings obj = context.read<ChronosSettings>();
+  Chronos({required BuildContext context, int first = 0, this.playing = true})
+      : super(validateFirst(
+            first, BlocProvider.of<SettingsCubit>(context).state.beats)) {
+    ChronosSettings obj = BlocProvider.of<SettingsCubit>(context).state;
     _limit = obj.beats;
     _timerPeriod = obj.beatPeriod;
-    _timer = _initTimer(_timerPeriod);
+    if (playing) _initTimer(_timerPeriod);
     // listen to SettingsCubit and update values accordingly
     _settingsSub = BlocProvider.of<SettingsCubit>(context).stream.listen(
       (event) async {
-        _timerPeriod = event.beatPeriod;
-        _timer = await _newTimer(_timerPeriod);
         _limit = event.beats;
+        _timerPeriod = event.beatPeriod;
+        await _newTimer(_timerPeriod);
       },
     );
   }
@@ -31,7 +27,7 @@ class Chronos extends Cubit<int> {
   @override
   Future<void> close() async {
     super.close();
-    _timer.cancel();
+    _timer?.cancel();
     _settingsSub.cancel();
   }
 
@@ -40,11 +36,14 @@ class Chronos extends Cubit<int> {
   late final StreamSubscription<ChronosSettings> _settingsSub;
   late int _limit;
   late Duration _timerPeriod;
-  late Timer _timer;
+  Timer? _timer;
 
   /// init timer from duration
-  Timer _initTimer(Duration d) {
-    return Timer(d, () {
+  void _initTimer(Duration d) {
+    debugPrint("_initTimer, duration: $d");
+    Timer.periodic(d, (timer) {
+      _timer = timer;
+      debugPrint("first timer activated");
       beat();
     });
   }
@@ -52,24 +51,44 @@ class Chronos extends Cubit<int> {
   /// update timer from period [d]
   ///
   /// waits for last tick to occur, which means tempo changes are smooth
-  Future<Timer> _newTimer(Duration d) async {
-    // wait for next beat
-    await stream.any((_) => true);
+  Future<void> _newTimer(Duration d) async {
+    // if playing, wait for next beat for smooth transition in case of bpm change
+    if (playing) await stream.any((_) => true);
     // proceed to update
-    return Timer(d, () {
+    debugPrint("how long");
+    Timer.periodic(d, (timer) {
+      debugPrint("new timer activated");
+
+      _timer = timer;
       beat();
     });
   }
 
   /// toggle playing, returns whether playing
   void togglePlaying({bool resetCounter = false}) async {
+    debugPrint("play toggled");
     if (playing) {
-      _timer.cancel();
-      playing = false;
+      stop();
     } else {
-      _timer = await _newTimer(_timerPeriod);
-      playing = true;
+      start();
     }
+  }
+
+  /// start playing
+  /// FIXME: error when press toggle multiple times, multiple timers created
+  void start() async {
+    if (playing) return;
+    debugPrint("creating new timer");
+    await _newTimer(_timerPeriod);
+    playing = true;
+  }
+
+  /// stop playing
+  void stop() {
+    if (!playing) return;
+    debugPrint("canceled timer");
+    _timer?.cancel();
+    playing = false;
   }
 
   /// increment and emit beat #
@@ -104,19 +123,25 @@ class ChronosSettings {
     required this.bpm,
     required this.beats,
     required this.measure,
+    required this.color1,
+    required this.color2,
   });
 
   /// copy constructor
   ChronosSettings.from(ChronosSettings old,
-      {int? bpm, int? beats, int? measure})
+      {int? bpm, int? beats, int? measure, Color? color1, Color? color2})
       : bpm = bpm ?? old.bpm,
         beats = beats ?? old.beats,
-        measure = measure ?? old.measure;
+        measure = measure ?? old.measure,
+        color1 = color1 ?? old.color1,
+        color2 = color2 ?? old.color2;
 
   /// instance variables
   final int bpm;
   final int beats;
   final int measure;
+  final Color color1;
+  final Color color2;
 
   /// beat period in millis
   Duration get beatPeriod => Duration(milliseconds: (60000 / bpm).truncate());
@@ -139,5 +164,15 @@ class SettingsCubit extends Cubit<ChronosSettings> {
   /// update measure
   void updateMeasure(int measure) {
     emit(ChronosSettings.from(state, measure: measure));
+  }
+
+  /// update color1
+  void updateColor1(Color c1) {
+    emit(ChronosSettings.from(state, color1: c1));
+  }
+
+  /// update color2
+  void updateColor2(Color c2) {
+    emit(ChronosSettings.from(state, color2: c2));
   }
 }

@@ -10,15 +10,26 @@ void main() {
 class Root extends StatelessWidget {
   const Root({Key? key}) : super(key: key);
   @override
-  Widget build(BuildContext context) => MultiBlocProvider(
-        providers: [
-          BlocProvider(
-              create: (_) => SettingsCubit(
-                  const ChronosSettings(bpm: 100, beats: 4, measure: 4))),
-          BlocProvider(
-              create: (BuildContext context) => Chronos(context: context)),
-        ],
-        child: Home(key: super.key),
+  Widget build(BuildContext context) => MaterialApp(
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider(
+                lazy: false,
+                create: (_) => SettingsCubit(
+                      const ChronosSettings(
+                        bpm: 100,
+                        beats: 4,
+                        measure: 4,
+                        color1: Colors.black87,
+                        color2: Colors.white70,
+                      ),
+                    )),
+            BlocProvider(
+                create: (BuildContext context1) => Chronos(context: context1),
+                lazy: false),
+          ],
+          child: Home(key: super.key),
+        ),
       );
 }
 
@@ -42,6 +53,7 @@ class _HomeState extends State<Home> {
       },
       // open drawer depending on swipe direction
       onHorizontalDragEnd: (DragEndDetails details) {
+        BlocProvider.of<Chronos>(context).stop();
         if ((details.primaryVelocity ?? 0) > 0) {
           _scaffoldKey.currentState!.openDrawer();
         } else if ((details.primaryVelocity ?? 0) < 0) {
@@ -50,7 +62,7 @@ class _HomeState extends State<Home> {
       },
       // on tap toggle metronome click -> play/pause
       onTap: () {
-        context.read<Chronos>().togglePlaying();
+        BlocProvider.of<Chronos>(context).togglePlaying();
       },
       onLongPress: () {
         // show dialog that allows toggling tempo display options
@@ -67,6 +79,18 @@ class _HomeState extends State<Home> {
               // metronome settings (play/pause, tempo, # bars, display options: |blink|sound|vibrate|)
               ),
         ),
+        onDrawerChanged: (open) {
+          if (!open) {
+            BlocProvider.of<Chronos>(context).play();
+            debugPrint("drawer closed");
+          }
+        },
+        onEndDrawerChanged: (open) {
+          if (!open) {
+            BlocProvider.of<Chronos>(context).play();
+            debugPrint("end drawer closed");
+          }
+        },
         body: const Zeus(),
       ),
     );
