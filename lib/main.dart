@@ -81,13 +81,13 @@ class _HomeState extends State<Home> {
         ),
         onDrawerChanged: (open) {
           if (!open) {
-            BlocProvider.of<Chronos>(context).play();
+            BlocProvider.of<Chronos>(context).start();
             debugPrint("drawer closed");
           }
         },
         onEndDrawerChanged: (open) {
           if (!open) {
-            BlocProvider.of<Chronos>(context).play();
+            BlocProvider.of<Chronos>(context).start();
             debugPrint("end drawer closed");
           }
         },
