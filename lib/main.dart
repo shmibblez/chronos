@@ -1,10 +1,24 @@
 import 'package:chronos/cubits.dart';
 import 'package:chronos/zeus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 void main() {
   runApp(const Root());
+}
+
+/// Some potential improvements
+/// - load last used settings, fall back to defaults in [ChronosConstants]
+
+/// ChromosComstamts, some app constants
+class ChronosConstants {
+  static const int maxBPM = 400;
+  static const int minBPM = 20;
+  static const int deltaBPM = maxBPM - minBPM;
+  static const int defaultBPM = 75; // resting heart bpm is about 70-80
+  static const defaultColor1 = Colors.black87;
+  static const defaultColor2 = Colors.white70;
 }
 
 class Root extends StatelessWidget {
@@ -46,10 +60,17 @@ class _HomeState extends State<Home> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      // change tempo based on
+      // change tempo based on scroll amount
+      // positive amount is down (tempo decrease)
+      // negative amount is up (tempo increase)
       onVerticalDragUpdate: (DragUpdateDetails details) {
-        // here change tempo, show new tempo in bottom sheet
-        // debugPrint();
+        // change tempo by 1
+        double delta = details.delta.dy;
+        int bpmChange = -delta.sign.toInt();
+        BlocProvider.of<SettingsCubit>(context).updateBPMby(bpmChange);
+        // debugPrint(
+        //   "VDU: delta: ${details.delta}, bpm change $bpmChange",
+        // );
       },
       // open drawer depending on swipe direction
       onHorizontalDragEnd: (DragEndDetails details) {
@@ -74,11 +95,7 @@ class _HomeState extends State<Home> {
               // settings and T&C
               ),
         ),
-        endDrawer: Drawer(
-          child: ListView(
-              // metronome settings (play/pause, tempo, # bars, display options: |blink|sound|vibrate|)
-              ),
-        ),
+        endDrawer: RightDrawer(),
         onDrawerChanged: (open) {
           if (!open) {
             BlocProvider.of<Chronos>(context).start();
@@ -92,6 +109,41 @@ class _HomeState extends State<Home> {
           }
         },
         body: const Zeus(),
+      ),
+    );
+  }
+}
+
+/// The [RightDrawer] contains metronome settings like
+/// - play/pause
+/// - tempo
+/// - bars
+/// - meter
+/// - enabled indicators
+/// - color
+/// FIXME: left off adding settings
+class RightDrawer extends StatelessWidget {
+  const RightDrawer({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      child: Column(
+        children: [
+          const Text("Metronome Options"), // title text
+          Row(
+            children: [
+              const Text("play/pause"),
+              ElevatedButton(
+                  onPressed: () {
+                    // toggle and set state to update button
+                  },
+                  child: Icon(BlocProvider.of<Chronos>(context).playing
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded)),
+            ],
+          ),
+        ],
       ),
     );
   }

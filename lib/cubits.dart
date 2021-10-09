@@ -1,72 +1,89 @@
 import 'dart:async';
-
+import 'package:chronos/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// [Chronos] Cubit keeps track of time and notifies beat changes based on bpm and
 /// beats per measure
+///
+/// Timer can be reset in 2 cases:
+/// 1. bpm change
+/// 2. play/pause
+/// For case 1, normal reset is done in sync with current
+/// For case 2, wait until tick, then reset timer with new tempo
 class Chronos extends Cubit<int> {
-  Chronos({required BuildContext context, int first = 0, this.playing = true})
+  Chronos(
+      {required BuildContext context, int first = 0, initiallyPlaying = true})
       : super(validateFirst(
             first, BlocProvider.of<SettingsCubit>(context).state.beats)) {
     ChronosSettings obj = BlocProvider.of<SettingsCubit>(context).state;
     _limit = obj.beats;
     _timerPeriod = obj.beatPeriod;
-    if (playing) _initTimer(_timerPeriod);
+    if (initiallyPlaying) _initTimer(_timerPeriod);
     // listen to SettingsCubit and update values accordingly
     _settingsSub = BlocProvider.of<SettingsCubit>(context).stream.listen(
       (event) async {
-        _limit = event.beats;
-        _timerPeriod = event.beatPeriod;
-        await _newTimer(_timerPeriod);
+        // update changed settings
+        if (event.beats != _limit) {
+          _limit = event.beats;
+        }
+        if (_timerPeriod != event.beatPeriod) {
+          _timerPeriod = event.beatPeriod;
+          await _periodChanged(_timerPeriod);
+        }
       },
     );
   }
 
-  /// close cubit streams and timers
+  /// lifecycle end
   @override
   Future<void> close() async {
     super.close();
-    _timer?.cancel();
+    // _timer?.clo();
     _settingsSub.cancel();
   }
 
   /// instance variables
-  bool playing;
   late final StreamSubscription<ChronosSettings> _settingsSub;
   late int _limit;
   late Duration _timerPeriod;
-  Timer? _timer;
+  StreamSubscription<void>? _timerSub;
+
+  /// other instance variables
+  bool get playing {
+    return _timerSub != null && !_timerSub!.isPaused;
+  }
+
+  // bool get pendingNewTimer {
+  //   return _newTimerResult != null;
+  // }
 
   /// init timer from duration
   void _initTimer(Duration d) {
-    debugPrint("_initTimer, duration: $d");
-    Timer.periodic(d, (timer) {
-      _timer = timer;
-      debugPrint("first timer activated");
+    _timerSub = Stream<void>.periodic(d).listen((_) {
       beat();
     });
   }
 
   /// update timer from period [d]
   ///
-  /// waits for last tick to occur, which means tempo changes are smooth
-  Future<void> _newTimer(Duration d) async {
-    // if playing, wait for next beat for smooth transition in case of bpm change
-    if (playing) await stream.any((_) => true);
-    // proceed to update
-    debugPrint("how long");
-    Timer.periodic(d, (timer) {
-      debugPrint("new timer activated");
-
-      _timer = timer;
+  /// waits for last tick to occur -> tempo changes are smooth
+  Future<void> _periodChanged(Duration d) async {
+    if (!playing) return;
+    // update sub callback, allows for smooth tempo changes
+    _timerSub!.onData((i) {
       beat();
+      // remove current sub
+      _timerSub?.pause();
+      _timerSub?.cancel();
+      _timerSub = null;
+      // reset timer according to new duration
+      _initTimer(d);
     });
   }
 
   /// toggle playing, returns whether playing
   void togglePlaying({bool resetCounter = false}) async {
-    debugPrint("play toggled");
     if (playing) {
       stop();
     } else {
@@ -75,20 +92,18 @@ class Chronos extends Cubit<int> {
   }
 
   /// start playing
-  /// FIXME: error when press toggle multiple times, multiple timers created
-  void start() async {
+  void start() {
     if (playing) return;
-    debugPrint("creating new timer");
-    await _newTimer(_timerPeriod);
-    playing = true;
+    beat();
+    _initTimer(_timerPeriod);
   }
 
   /// stop playing
   void stop() {
     if (!playing) return;
-    debugPrint("canceled timer");
-    _timer?.cancel();
-    playing = false;
+    _timerSub?.pause();
+    _timerSub?.cancel();
+    _timerSub = null;
   }
 
   /// increment and emit beat #
@@ -152,8 +167,15 @@ class SettingsCubit extends Cubit<ChronosSettings> {
   SettingsCubit(ChronosSettings initialState) : super(initialState);
 
   /// update bpm
-  void updateBPM(int bpm) {
-    emit(ChronosSettings.from(state, bpm: bpm));
+  void updateBPMby(int bpm) {
+    int newBPM = state.bpm + bpm;
+    if (newBPM > ChronosConstants.maxBPM) {
+      newBPM = ChronosConstants.maxBPM;
+    } else if (newBPM < ChronosConstants.minBPM) {
+      newBPM = ChronosConstants.minBPM;
+    }
+    debugPrint("SettingsCubit.updateBPMby: updated BPM to $newBPM");
+    emit(ChronosSettings.from(state, bpm: newBPM));
   }
 
   /// update beats per measure
