@@ -174,8 +174,16 @@ class SettingsCubit extends Cubit<ChronosSettings> {
     } else if (newBPM < ChronosConstants.minBPM) {
       newBPM = ChronosConstants.minBPM;
     }
-    debugPrint("SettingsCubit.updateBPMby: updated BPM to $newBPM");
     emit(ChronosSettings.from(state, bpm: newBPM));
+  }
+
+  void updateBPM(int bpm) {
+    if (bpm > ChronosConstants.maxBPM) {
+      bpm = ChronosConstants.maxBPM;
+    } else if (bpm < ChronosConstants.minBPM) {
+      bpm = ChronosConstants.minBPM;
+    }
+    emit(ChronosSettings.from(state, bpm: bpm));
   }
 
   /// update beats per measure

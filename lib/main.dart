@@ -1,6 +1,7 @@
 import 'package:chronos/cubits.dart';
 import 'package:chronos/zeus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -131,16 +132,36 @@ class RightDrawer extends StatelessWidget {
       child: Column(
         children: [
           const Text("Metronome Options"), // title text
+          // play/pause
           Row(
             children: [
               const Text("play/pause"),
-              ElevatedButton(
+              IconButton(
                   onPressed: () {
-                    // toggle and set state to update button
+                    // show dialog explainig tap to play/pause
                   },
-                  child: Icon(BlocProvider.of<Chronos>(context).playing
-                      ? Icons.pause_rounded
-                      : Icons.play_arrow_rounded)),
+                  icon: const Icon(Icons.help)),
+            ],
+          ),
+          // tempo
+          Row(
+            children: [
+              const Text("tempo"),
+              BlocBuilder<SettingsCubit, ChronosSettings>(
+                  builder: (_, settings) {
+                final TextEditingController _tempoController =
+                    TextEditingController(text: "${settings.bpm} bpm}");
+                return TextField(
+                  controller: _tempoController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  onSubmitted: (str) {
+                    int newBPM = int.parse(str);
+                    // TODO: if bpm outside min & max bounds, show message and set to min or max
+                    BlocProvider.of<SettingsCubit>(context).updateBPM(newBPM);
+                  },
+                );
+              }),
             ],
           ),
         ],
