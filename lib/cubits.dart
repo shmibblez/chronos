@@ -15,17 +15,17 @@ class Chronos extends Cubit<int> {
   Chronos(
       {required BuildContext context, int first = 0, initiallyPlaying = true})
       : super(validateFirst(
-            first, BlocProvider.of<SettingsCubit>(context).state.beats)) {
+            first, BlocProvider.of<SettingsCubit>(context).state.beatsPerBar)) {
     ChronosSettings obj = BlocProvider.of<SettingsCubit>(context).state;
-    _limit = obj.beats;
+    _limit = obj.beatsPerBar;
     _timerPeriod = obj.beatPeriod;
     if (initiallyPlaying) _initTimer(_timerPeriod);
     // listen to SettingsCubit and update values accordingly
     _settingsSub = BlocProvider.of<SettingsCubit>(context).stream.listen(
       (event) async {
         // update changed settings
-        if (event.beats != _limit) {
-          _limit = event.beats;
+        if (event.beatsPerBar != _limit) {
+          _limit = event.beatsPerBar;
         }
         if (_timerPeriod != event.beatPeriod) {
           _timerPeriod = event.beatPeriod;
@@ -136,27 +136,57 @@ class Chronos extends Cubit<int> {
 class ChronosSettings {
   const ChronosSettings({
     required this.bpm,
-    required this.beats,
-    required this.measure,
+    required this.beatsPerBar,
+    required this.barNote,
     required this.color1,
     required this.color2,
+    required this.blinkEnabled,
+    required this.vibrateEnabled,
+    required this.clickEnabled,
+    required this.vibrateAvailable,
   });
 
   /// copy constructor
-  ChronosSettings.from(ChronosSettings old,
-      {int? bpm, int? beats, int? measure, Color? color1, Color? color2})
-      : bpm = bpm ?? old.bpm,
-        beats = beats ?? old.beats,
-        measure = measure ?? old.measure,
+  ChronosSettings.from(
+    ChronosSettings old, {
+    int? bpm,
+    int? beats,
+    int? measure,
+    Color? color1,
+    Color? color2,
+    bool? blinkEnabled,
+    bool? vibrateEnabled,
+    bool? clickEnabled,
+  })  : bpm = bpm ?? old.bpm,
+        beatsPerBar = beats ?? old.beatsPerBar,
+        barNote = measure ?? old.barNote,
         color1 = color1 ?? old.color1,
-        color2 = color2 ?? old.color2;
+        color2 = color2 ?? old.color2,
+        blinkEnabled = blinkEnabled ?? old.blinkEnabled,
+        vibrateEnabled = vibrateEnabled ?? old.vibrateEnabled,
+        clickEnabled = clickEnabled ?? old.clickEnabled,
+        vibrateAvailable = old.vibrateAvailable;
 
   /// instance variables
   final int bpm;
-  final int beats;
-  final int measure;
+  final int beatsPerBar;
+  final int barNote;
+  // main color, [Thunderbolt] color when idle
   final Color color1;
+  // secondary/contrast color, [Thunderbolt] color when enabled
   final Color color2;
+  // color1 but darker
+  Color get color1d => Color.lerp(Colors.black, color1, 0.5)!;
+  // color2 but darker
+  Color get color2d => Color.lerp(Colors.black, color2, 0.5)!;
+  // color1 but lighter
+  Color get color1l => Color.lerp(color1, Colors.white, 0.5)!;
+  // color2 but lighter
+  Color get color2l => Color.lerp(color2, Colors.white, 0.5)!;
+  final bool blinkEnabled;
+  final bool vibrateEnabled;
+  final bool clickEnabled;
+  final bool vibrateAvailable;
 
   /// beat period in millis
   Duration get beatPeriod => Duration(milliseconds: (60000 / bpm).truncate());
@@ -188,21 +218,40 @@ class SettingsCubit extends Cubit<ChronosSettings> {
 
   /// update beats per measure
   void updateBeats(int beats) {
+    if (beats == state.beatsPerBar) return;
     emit(ChronosSettings.from(state, beats: beats));
   }
 
   /// update measure
-  void updateMeasure(int measure) {
+  void updateBarNote(int measure) {
+    if (measure == state.barNote) return;
     emit(ChronosSettings.from(state, measure: measure));
   }
 
   /// update color1
   void updateColor1(Color c1) {
+    if (c1 == state.color1) return;
     emit(ChronosSettings.from(state, color1: c1));
   }
 
   /// update color2
   void updateColor2(Color c2) {
+    if (c2 == state.color2) return;
     emit(ChronosSettings.from(state, color2: c2));
+  }
+
+  /// update blinkEnabled
+  void toggleBlinkEnabled() {
+    emit(ChronosSettings.from(state, blinkEnabled: !state.blinkEnabled));
+  }
+
+  /// update vibrateEnabled
+  void toggleVibrateEnabled() {
+    emit(ChronosSettings.from(state, vibrateEnabled: !state.vibrateEnabled));
+  }
+
+  /// update clivkEnabled
+  void toggleClickEnabled() {
+    emit(ChronosSettings.from(state, clickEnabled: !state.clickEnabled));
   }
 }

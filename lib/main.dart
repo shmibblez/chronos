@@ -1,16 +1,22 @@
 import 'package:chronos/cubits.dart';
 import 'package:chronos/zeus.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+import 'drawers.dart';
 
 void main() {
   runApp(const Root());
 }
 
-/// Some potential improvements
+/// Some potential improvements, priority 1, 2, or 3
 /// - load last used settings, fall back to defaults in [ChronosConstants]
+/// - #1 (3) if bpm outside min & max bounds, show message and set to min or max
+/// - #2 (1) show beat strength editor (from 1-3) when long-press screen. Also store this in preset as array of numbers (0 for off, 3 for max strength)
+/// - #3 (1) check if vibration enabled, allow toggling if true
+/// - #4 (2) save last settings and load new ones (last preset, tempo, enabled indicators, beat strength selections)
+/// - #5 (2) add tap to tempo option
 
 /// ChromosComstamts, some app constants
 class ChronosConstants {
@@ -33,10 +39,14 @@ class Root extends StatelessWidget {
                 create: (_) => SettingsCubit(
                       const ChronosSettings(
                         bpm: 100,
-                        beats: 4,
-                        measure: 4,
+                        beatsPerBar: 4,
+                        barNote: 4,
                         color1: Colors.black87,
                         color2: Colors.white70,
+                        blinkEnabled: true,
+                        vibrateEnabled: false, // #3
+                        clickEnabled: true,
+                        vibrateAvailable: false, // #3
                       ),
                     )),
             BlocProvider(
@@ -96,7 +106,7 @@ class _HomeState extends State<Home> {
               // settings and T&C
               ),
         ),
-        endDrawer: RightDrawer(),
+        endDrawer: const RightDrawer(),
         onDrawerChanged: (open) {
           if (!open) {
             BlocProvider.of<Chronos>(context).start();
@@ -110,61 +120,69 @@ class _HomeState extends State<Home> {
           }
         },
         body: const Zeus(),
-      ),
-    );
-  }
-}
 
-/// The [RightDrawer] contains metronome settings like
-/// - play/pause
-/// - tempo
-/// - bars
-/// - meter
-/// - enabled indicators
-/// - color
-/// FIXME: left off adding settings
-class RightDrawer extends StatelessWidget {
-  const RightDrawer({Key? key}) : super(key: key);
+        /// FIXME: bottomSheet overlaps scaffold body, need to place in column or something else. Also
+        bottomSheet: FractionallySizedBox(
+          heightFactor: 1 / 10,
+          child: BlocBuilder<SettingsCubit, ChronosSettings>(
+              builder: (_, settings) {
+            Color darker = settings.color2d;
+            Color lighter = settings.color2l;
+            return Container(
+              color: settings.color1d,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  /// blink indicator
+                  IconButton(
+                    onPressed: () {
+                      BlocProvider.of<SettingsCubit>(context)
+                          .toggleBlinkEnabled();
+                    },
+                    icon: settings.blinkEnabled
+                        ? Icon(Icons.lightbulb, color: lighter)
+                        : Icon(Icons.lightbulb_outline, color: darker),
+                  ),
 
-  @override
-  Widget build(BuildContext context) {
-    return Drawer(
-      child: Column(
-        children: [
-          const Text("Metronome Options"), // title text
-          // play/pause
-          Row(
-            children: [
-              const Text("play/pause"),
-              IconButton(
-                  onPressed: () {
-                    // show dialog explainig tap to play/pause
-                  },
-                  icon: const Icon(Icons.help)),
-            ],
-          ),
-          // tempo
-          Row(
-            children: [
-              const Text("tempo"),
-              BlocBuilder<SettingsCubit, ChronosSettings>(
-                  builder: (_, settings) {
-                final TextEditingController _tempoController =
-                    TextEditingController(text: "${settings.bpm} bpm}");
-                return TextField(
-                  controller: _tempoController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onSubmitted: (str) {
-                    int newBPM = int.parse(str);
-                    // TODO: if bpm outside min & max bounds, show message and set to min or max
-                    BlocProvider.of<SettingsCubit>(context).updateBPM(newBPM);
-                  },
-                );
-              }),
-            ],
-          ),
-        ],
+                  /// vibrate indicator
+                  if (settings.vibrateAvailable)
+                    IconButton(
+                      onPressed: () {
+                        BlocProvider.of<SettingsCubit>(context)
+                            .toggleVibrateEnabled();
+                      },
+                      icon: settings.vibrateEnabled
+                          ? Icon(Icons.vibration, color: lighter)
+                          : Icon(Icons.vibration, color: darker),
+                    ),
+
+                  /// click indicator
+                  IconButton(
+                    onPressed: () {
+                      BlocProvider.of<SettingsCubit>(context)
+                          .toggleClickEnabled();
+                    },
+                    icon: settings.clickEnabled
+                        ? Icon(Icons.hearing, color: lighter)
+                        : Icon(Icons.hearing_disabled, color: darker),
+                  ),
+                  // #5
+                  // Expanded(
+                  //   child: IconButton(
+                  //     onPressed: () {
+                  //       BlocProvider.of<SettingsCubit>(context)
+                  //           .toggleClickEnabled();
+                  //     },
+                  //     icon: settings.clickEnabled
+                  //         ? Icon(Icons.touch_app, color: lighter)
+                  //         : Icon(Icons.touch_app, color: darker),
+                  //   ),
+                  // ),
+                ],
+              ),
+            );
+          }),
+        ),
       ),
     );
   }

@@ -13,37 +13,40 @@ class Zeus extends StatefulWidget {
 }
 
 class _ZeusState extends State<Zeus> {
-  late final List<Thunderbolt> _thunderbolts;
+  late List<Thunderbolt> _thunderbolts;
   late List<ThunderboltController> _thunderboltControllers;
-  late final StreamSubscription<int> _chronosSub;
-  late int _lastBeat;
-
-  /// init thunderbolts based on # of beats
-  @override
-  void initState() {
-    super.initState();
-    _thunderbolts = [];
-    _thunderboltControllers = [];
-    int nBolts = context.read<SettingsCubit>().state.beats;
-    for (int i = 0; i < nBolts; i++) {
-      _thunderboltControllers.add(ThunderboltController());
-      _thunderbolts.add(Thunderbolt(
-        controller: _thunderboltControllers.last,
-      ));
-    }
-    _lastBeat = -1;
-    _chronosSub = BlocProvider.of<Chronos>(context).stream.listen((int event) {
-      if (_lastBeat != -1) _thunderboltControllers[_lastBeat].vanish!();
-      _thunderboltControllers[event].unleash!();
-      _lastBeat = event;
-    });
-  }
+  StreamSubscription<int>? _chronosSub;
+  late int _previousBolt;
 
   /// lay out thunderbolts evenly in Column
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<SettingsCubit, ChronosSettings>(
-      builder: (context, chron) {
+      buildWhen: (oldSettings, newSettings) =>
+          oldSettings.beatsPerBar != newSettings.beatsPerBar,
+      builder: (_, settings) {
+        // init thunderbolts and controllers
+        _thunderbolts = [];
+        _thunderboltControllers = [];
+        for (int i = 0; i < settings.beatsPerBar; i++) {
+          _thunderboltControllers.add(ThunderboltController());
+          _thunderbolts.add(Thunderbolt(
+            controller: _thunderboltControllers.last,
+          ));
+        }
+        // init [_previousBolt]
+        _previousBolt = -1;
+        // set [_chronosSub] to unleash current [Thunderbolt] and vanish previous one
+        _chronosSub ??= BlocProvider.of<Chronos>(context).stream.listen(
+          (int event) {
+            if (_previousBolt != -1) {
+              _thunderboltControllers[_previousBolt].vanish!();
+            }
+            _thunderboltControllers[event].unleash!();
+            _previousBolt = event;
+          },
+        );
+        // create thunderbolt array based on beatsPerBar
         return Column(
             mainAxisSize: MainAxisSize.max,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -57,7 +60,7 @@ class _ZeusState extends State<Zeus> {
   /// dispose
   @override
   void dispose() {
-    _chronosSub.cancel();
+    _chronosSub?.cancel();
     super.dispose();
   }
 }
