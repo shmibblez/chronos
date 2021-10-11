@@ -151,7 +151,7 @@ class ChronosSettings {
     ChronosSettings old, {
     int? bpm,
     int? beats,
-    int? measure,
+    int? barNote,
     Color? color1,
     Color? color2,
     bool? blinkEnabled,
@@ -159,7 +159,7 @@ class ChronosSettings {
     bool? clickEnabled,
   })  : bpm = bpm ?? old.bpm,
         beatsPerBar = beats ?? old.beatsPerBar,
-        barNote = measure ?? old.barNote,
+        barNote = barNote ?? old.barNote,
         color1 = color1 ?? old.color1,
         color2 = color2 ?? old.color2,
         blinkEnabled = blinkEnabled ?? old.blinkEnabled,
@@ -176,13 +176,13 @@ class ChronosSettings {
   // secondary/contrast color, [Thunderbolt] color when enabled
   final Color color2;
   // color1 but darker
-  Color get color1d => Color.lerp(Colors.black, color1, 0.5)!;
+  Color get color1d => Color.lerp(Colors.black, color1, 0.9)!;
   // color2 but darker
-  Color get color2d => Color.lerp(Colors.black, color2, 0.5)!;
+  Color get color2d => Color.lerp(Colors.black, color2, 0.6)!;
   // color1 but lighter
-  Color get color1l => Color.lerp(color1, Colors.white, 0.5)!;
+  Color get color1l => Color.lerp(color1, Colors.white, 0.1)!;
   // color2 but lighter
-  Color get color2l => Color.lerp(color2, Colors.white, 0.5)!;
+  Color get color2l => Color.lerp(color2, Colors.white, 0.1)!;
   final bool blinkEnabled;
   final bool vibrateEnabled;
   final bool clickEnabled;
@@ -190,9 +190,33 @@ class ChronosSettings {
 
   /// beat period in millis
   Duration get beatPeriod => Duration(milliseconds: (60000 / bpm).truncate());
+
+  /// taking [bk] as background color, return color for text such that it's visible on it
+  ///
+  /// tries to return [xt], but if [bk] and [xt] are too similar, returns bk's opposite color
+  Color visibleTextColor(Color bk, Color xt) {
+    double avgDiff = ((bk.red - xt.red).abs() +
+            (bk.green - xt.green).abs() +
+            (bk.blue - xt.blue).abs()) /
+        3;
+
+    // if [xt] is different enough from [bk], return [xt]
+    if (avgDiff > 10) return xt;
+    // if not different enough, return opposite color
+    return Color.fromARGB(255, 255 - bk.red, 255 - bk.green, 255 - bk.blue);
+  }
 }
 
 /// cubit for metronome settings
+/// FIXME: left off here
+/// finished ui for right drawer, now need to react accordingly to options
+/// - if vibrate or sound enabled, listen to Chronos and dispatch sound and vibrate events
+/// - when blink is off, [Zeus] has some adapted thunderbolts which means only borders of blocks blink, not whole block
+///
+/// for right drawer
+/// - add sound file picker option
+/// for left drawer
+/// - add presets
 class SettingsCubit extends Cubit<ChronosSettings> {
   SettingsCubit(ChronosSettings initialState) : super(initialState);
 
@@ -216,16 +240,16 @@ class SettingsCubit extends Cubit<ChronosSettings> {
     emit(ChronosSettings.from(state, bpm: bpm));
   }
 
-  /// update beats per measure
+  /// update beats per barNote
   void updateBeats(int beats) {
     if (beats == state.beatsPerBar) return;
     emit(ChronosSettings.from(state, beats: beats));
   }
 
-  /// update measure
-  void updateBarNote(int measure) {
-    if (measure == state.barNote) return;
-    emit(ChronosSettings.from(state, measure: measure));
+  /// update barNote
+  void updateBarNote(int barNote) {
+    if (barNote == state.barNote) return;
+    emit(ChronosSettings.from(state, barNote: barNote));
   }
 
   /// update color1

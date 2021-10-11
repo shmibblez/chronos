@@ -1,4 +1,6 @@
+import 'package:chronos/cubits.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class HelpButton extends StatelessWidget {
   const HelpButton({required this.msg, Key? key}) : super(key: key);
@@ -13,7 +15,10 @@ class HelpButton extends StatelessWidget {
         showDialog(
             context: context, builder: (_) => AlertDialog(content: Text(msg)));
       },
-      icon: const Icon(Icons.help),
+      icon: Icon(
+        Icons.help,
+        color: BlocProvider.of<SettingsCubit>(context).state.color2,
+      ),
     );
   }
 }
