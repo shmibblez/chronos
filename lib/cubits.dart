@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:chronos/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:soundpool/soundpool.dart';
+import 'package:vibration/vibration.dart';
 
 /// [Chronos] Cubit keeps track of time and notifies beat changes based on bpm and
 /// beats per measure
@@ -13,12 +15,18 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 /// For case 2, wait until tick, then reset timer with new tempo
 class Chronos extends Cubit<int> {
   Chronos(
-      {required BuildContext context, int first = 0, initiallyPlaying = true})
-      : super(validateFirst(
+      {required BuildContext context,
+      required this.soundpool,
+      int first = 0,
+      initiallyPlaying = true})
+      : super(validateFirstBeat(
             first, BlocProvider.of<SettingsCubit>(context).state.beatsPerBar)) {
     ChronosSettings obj = BlocProvider.of<SettingsCubit>(context).state;
     _limit = obj.beatsPerBar;
     _timerPeriod = obj.beatPeriod;
+    _clickEnabled = obj.clickEnabled;
+    _vibrateEnabled = obj.vibrateEnabled;
+    _soundId = obj.soundId;
     if (initiallyPlaying) _initTimer(_timerPeriod);
     // listen to SettingsCubit and update values accordingly
     _settingsSub = BlocProvider.of<SettingsCubit>(context).stream.listen(
@@ -30,6 +38,15 @@ class Chronos extends Cubit<int> {
         if (_timerPeriod != event.beatPeriod) {
           _timerPeriod = event.beatPeriod;
           await _periodChanged(_timerPeriod);
+        }
+        if (event.clickEnabled != _clickEnabled) {
+          _clickEnabled = event.clickEnabled;
+        }
+        if (event.vibrateEnabled != _vibrateEnabled) {
+          _vibrateEnabled = event.vibrateEnabled;
+        }
+        if (event.soundId != _soundId) {
+          _soundId = event.soundId;
         }
       },
     );
@@ -48,6 +65,10 @@ class Chronos extends Cubit<int> {
   late int _limit;
   late Duration _timerPeriod;
   StreamSubscription<void>? _timerSub;
+  late int _soundId;
+  late bool _clickEnabled;
+  late bool _vibrateEnabled;
+  final Soundpool soundpool;
 
   /// other instance variables
   bool get playing {
@@ -115,11 +136,13 @@ class Chronos extends Cubit<int> {
       beat = state + 1;
     }
     emit(beat);
+    if (_clickEnabled) soundpool.play(_soundId);
+    if (_vibrateEnabled) Vibration.vibrate();
     return beat;
   }
 
   /// make sure starting beat [first] isn't greater than [limit]
-  static int validateFirst(int first, int limit) {
+  static int validateFirstBeat(int first, int limit) {
     // limit - 1 since first is 0 indexed
     if (first >= limit - 1) return 0;
     return first;
@@ -134,9 +157,9 @@ class Chronos extends Cubit<int> {
 
 /// stores metronome settings
 class ChronosSettings {
-  const ChronosSettings({
-    required this.bpm,
-    required this.beatsPerBar,
+  ChronosSettings({
+    required int bpm,
+    required int beatsPerBar,
     required this.barNote,
     required this.color1,
     required this.color2,
@@ -144,7 +167,9 @@ class ChronosSettings {
     required this.vibrateEnabled,
     required this.clickEnabled,
     required this.vibrateAvailable,
-  });
+    required this.soundId,
+  })  : bpm = _validateBPM(bpm),
+        beatsPerBar = _validateBeatsPerBar(beatsPerBar);
 
   /// copy constructor
   ChronosSettings.from(
@@ -157,7 +182,8 @@ class ChronosSettings {
     bool? blinkEnabled,
     bool? vibrateEnabled,
     bool? clickEnabled,
-  })  : bpm = bpm ?? old.bpm,
+    int? soundId,
+  })  : bpm = _validateBPM(bpm ?? old.bpm),
         beatsPerBar = beats ?? old.beatsPerBar,
         barNote = barNote ?? old.barNote,
         color1 = color1 ?? old.color1,
@@ -165,10 +191,11 @@ class ChronosSettings {
         blinkEnabled = blinkEnabled ?? old.blinkEnabled,
         vibrateEnabled = vibrateEnabled ?? old.vibrateEnabled,
         clickEnabled = clickEnabled ?? old.clickEnabled,
-        vibrateAvailable = old.vibrateAvailable;
+        vibrateAvailable = old.vibrateAvailable,
+        soundId = soundId ?? old.soundId;
 
   /// instance variables
-  final int bpm;
+  late int bpm;
   final int beatsPerBar;
   final int barNote;
   // main color, [Thunderbolt] color when idle
@@ -187,6 +214,7 @@ class ChronosSettings {
   final bool vibrateEnabled;
   final bool clickEnabled;
   final bool vibrateAvailable;
+  final int soundId;
 
   /// beat period in millis
   Duration get beatPeriod => Duration(milliseconds: (60000 / bpm).truncate());
@@ -205,6 +233,24 @@ class ChronosSettings {
     // if not different enough, return opposite color
     return Color.fromARGB(255, 255 - bk.red, 255 - bk.green, 255 - bk.blue);
   }
+
+  static int _validateBPM(int bpm) {
+    if (bpm > ChronosConstants.maxBPM) {
+      return ChronosConstants.maxBPM;
+    } else if (bpm < ChronosConstants.minBPM) {
+      return ChronosConstants.minBPM;
+    }
+    return bpm;
+  }
+
+  static int _validateBeatsPerBar(int beats) {
+    if (beats > ChronosConstants.maxBeatsPerBar) {
+      return ChronosConstants.maxBeatsPerBar;
+    } else if (beats < ChronosConstants.minBeatsPerBar) {
+      return ChronosConstants.minBeatsPerBar;
+    }
+    return beats;
+  }
 }
 
 /// cubit for metronome settings
@@ -222,28 +268,20 @@ class SettingsCubit extends Cubit<ChronosSettings> {
 
   /// update bpm
   void updateBPMby(int bpm) {
-    int newBPM = state.bpm + bpm;
-    if (newBPM > ChronosConstants.maxBPM) {
-      newBPM = ChronosConstants.maxBPM;
-    } else if (newBPM < ChronosConstants.minBPM) {
-      newBPM = ChronosConstants.minBPM;
-    }
-    emit(ChronosSettings.from(state, bpm: newBPM));
+    updateBPM(state.bpm + bpm);
   }
 
   void updateBPM(int bpm) {
-    if (bpm > ChronosConstants.maxBPM) {
-      bpm = ChronosConstants.maxBPM;
-    } else if (bpm < ChronosConstants.minBPM) {
-      bpm = ChronosConstants.minBPM;
-    }
-    emit(ChronosSettings.from(state, bpm: bpm));
+    int validated = ChronosSettings._validateBPM(bpm);
+    if (validated == state.bpm) return;
+    emit(ChronosSettings.from(state, bpm: validated));
   }
 
   /// update beats per barNote
-  void updateBeats(int beats) {
-    if (beats == state.beatsPerBar) return;
-    emit(ChronosSettings.from(state, beats: beats));
+  void updateBeatsPerBar(int beats) {
+    int validated = ChronosSettings._validateBeatsPerBar(beats);
+    if (validated == state.beatsPerBar) return;
+    emit(ChronosSettings.from(state, beats: validated));
   }
 
   /// update barNote
@@ -271,6 +309,8 @@ class SettingsCubit extends Cubit<ChronosSettings> {
 
   /// update vibrateEnabled
   void toggleVibrateEnabled() {
+    // only allow true if vibration is available
+    if (!state.vibrateAvailable) return;
     emit(ChronosSettings.from(state, vibrateEnabled: !state.vibrateEnabled));
   }
 

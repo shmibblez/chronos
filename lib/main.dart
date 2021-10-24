@@ -1,9 +1,13 @@
 import 'package:chronos/cubits.dart';
 import 'package:chronos/zeus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:soundpool/soundpool.dart';
+import 'package:vibration/vibration.dart';
 
 import 'right_drawer.dart';
 
@@ -13,49 +17,97 @@ void main() {
 
 /// Some potential improvements, priority 1, 2, or 3
 /// - load last used settings, fall back to defaults in [ChronosConstants]
-/// - #1 (3) if bpm outside min & max bounds, show message and set to min or max
 /// - #2 (1) show beat strength editor (from 1-3) when long-press screen. Also store this in preset as array of numbers (0 for off, 3 for max strength)
 /// - #3 (1) check if vibration enabled, allow toggling if true
-/// - #4 (2) save last settings and load new ones (last preset, tempo, enabled indicators, beat strength selections)
+/// - #4 (2) save last settings (last preset, tempo, enabled indicators, beat strength selections), careful with tempo since set very quickly
 /// - #5 (2) add tap to tempo option
+/// -
 
 /// ChromosComstamts, some app constants
 class ChronosConstants {
   static const int maxBPM = 500;
   static const int minBPM = 20;
+  static const int maxBeatsPerBar = 20;
+  static const int minBeatsPerBar = 1;
   static const int deltaBPM = maxBPM - minBPM;
   static const int defaultBPM = 75; // resting heart bpm is about 70-80
   static const defaultColor1 = Colors.black87;
   static const defaultColor2 = Colors.white70;
 }
 
+class LoadingPage extends StatelessWidget {
+  const LoadingPage({Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Colors.black87,
+      body: Center(
+        child: CircularProgressIndicator(color: Colors.red),
+      ),
+    );
+  }
+}
+
+class InitialData {
+  InitialData({
+    required this.settings,
+    required this.soundpool,
+  });
+  final ChronosSettings settings;
+  final Soundpool soundpool;
+}
+
 class Root extends StatelessWidget {
+  Future<InitialData> _initialSettings() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String sound = prefs.getString("bonkFile") ?? "sounds/wood_sound.wav";
+    final ByteData bytes = await rootBundle.load(sound);
+    final Soundpool soundpool = Soundpool.fromOptions();
+    final int soundId = await soundpool.load(bytes);
+    final bool canVibrate = (await Vibration.hasVibrator() ?? false) && !kIsWeb;
+    return InitialData(
+      settings: ChronosSettings(
+        bpm: prefs.getInt("bpm") ?? 100,
+        beatsPerBar: prefs.getInt("beatsPerBar") ?? 4,
+        barNote: prefs.getInt("barNote") ?? 4,
+        color1: Color(prefs.getInt("color1") ?? Colors.black87.value),
+        color2: Color(prefs.getInt("color2") ?? Colors.white70.value),
+        blinkEnabled: prefs.getBool("blinkEnabled") ?? true,
+        vibrateEnabled: prefs.getBool("vibrateEnabled") ?? false, // #3
+        clickEnabled: prefs.getBool("clickEnabled") ?? true,
+        vibrateAvailable: canVibrate, // #3
+        soundId: soundId,
+      ),
+      soundpool: soundpool,
+    );
+  }
+
   const Root({Key? key}) : super(key: key);
   @override
   Widget build(BuildContext context) => MaterialApp(
-        home: MultiBlocProvider(
-          providers: [
-            BlocProvider(
-                lazy: false,
-                create: (_) => SettingsCubit(
-                      const ChronosSettings(
-                        bpm: 100,
-                        beatsPerBar: 4,
-                        barNote: 4,
-                        color1: Colors.black87,
-                        color2: Colors.white70,
-                        blinkEnabled: true,
-                        vibrateEnabled: false, // #3
-                        clickEnabled: true,
-                        vibrateAvailable: false, // #3
-                      ),
-                    )),
-            BlocProvider(
-                create: (BuildContext context1) => Chronos(context: context1),
-                lazy: false),
-          ],
-          child: Home(key: super.key),
-        ),
+        home: FutureBuilder<InitialData>(
+            future: _initialSettings(),
+            builder: (context, snap) {
+              if (snap.connectionState != ConnectionState.done ||
+                  snap.data == null) {
+                return const LoadingPage();
+              }
+              // if future complete, use snap data
+              return MultiBlocProvider(
+                providers: [
+                  BlocProvider(
+                      lazy: false,
+                      create: (_) => SettingsCubit(
+                            snap.data!.settings,
+                          )),
+                  BlocProvider(
+                      create: (BuildContext context1) => Chronos(
+                          context: context1, soundpool: snap.data!.soundpool),
+                      lazy: false),
+                ],
+                child: Home(key: super.key),
+              );
+            }),
       );
 }
 
@@ -172,7 +224,6 @@ class _HomeState extends State<Home> {
                                     ],
                                     onSubmitted: (str) {
                                       int newBPM = int.parse(str);
-                                      // #1
                                       BlocProvider.of<SettingsCubit>(context)
                                           .updateBPM(newBPM);
                                     }),
@@ -252,7 +303,7 @@ class BeatIndicators extends StatelessWidget {
                   },
                   icon: settings.vibrateEnabled
                       ? Icon(Icons.vibration, color: lighter)
-                      : Icon(Icons.vibration, color: darker),
+                      : Icon(Icons.phone_android_sharp, color: darker),
                 ),
 
               /// click indicator

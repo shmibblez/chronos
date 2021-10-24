@@ -84,7 +84,6 @@ class _RightDrawerState extends State<RightDrawer> {
                                   ],
                                   onSubmitted: (str) {
                                     int newBPM = int.parse(str);
-                                    // #1
                                     BlocProvider.of<SettingsCubit>(context)
                                         .updateBPM(newBPM);
                                   }));
@@ -124,10 +123,10 @@ class _RightDrawerState extends State<RightDrawer> {
                                         ],
                                         onSubmitted: (str) {
                                           int newBeatsPerBar = int.parse(str);
-                                          // #1
                                           BlocProvider.of<SettingsCubit>(
                                                   context)
-                                              .updateBeats(newBeatsPerBar);
+                                              .updateBeatsPerBar(
+                                                  newBeatsPerBar);
                                         }));
                               },
                             ),
@@ -151,7 +150,6 @@ class _RightDrawerState extends State<RightDrawer> {
                                         ],
                                         onSubmitted: (str) {
                                           int newBarNote = int.parse(str);
-                                          // #1
                                           BlocProvider.of<SettingsCubit>(
                                                   context)
                                               .updateBarNote(newBarNote);
