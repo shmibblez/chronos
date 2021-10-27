@@ -1,4 +1,5 @@
-import 'package:chronos/cubits.dart';
+import 'package:chronos/cubits/hephaestus.dart';
+import 'package:chronos/cubits/hermes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -17,7 +18,7 @@ class HelpButton extends StatelessWidget {
       },
       icon: Icon(
         Icons.help,
-        color: BlocProvider.of<SettingsCubit>(context).state.color2,
+        color: BlocProvider.of<Hephaestus>(context).state.color2,
       ),
     );
   }

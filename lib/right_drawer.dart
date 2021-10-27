@@ -1,17 +1,18 @@
 import 'package:chronos/convenience_widgets.dart';
-import 'package:chronos/cubits.dart';
+import 'package:chronos/cubits/hephaestus.dart';
+import 'package:chronos/cubits/hermes.dart';
 import 'package:chronos/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-/// The [RightDrawer] contains metronome options like
+/// The [RightDrawer] is [Hephaestus]'s domain, and is where the user can edit app
+/// layout settings and indicators through metronome options like:
 /// - play/pause
-/// - tempo
-/// - beats
-/// - bar note
 /// - enabled indicators
 /// - color
+///
+/// these options are independent from [Preset]s, which is why they're in separate drawers
 class RightDrawer extends StatefulWidget {
   const RightDrawer({Key? key}) : super(key: key);
 
@@ -22,7 +23,7 @@ class RightDrawer extends StatefulWidget {
 class _RightDrawerState extends State<RightDrawer> {
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<SettingsCubit, ChronosSettings>(
+    return BlocBuilder<Hephaestus, Toolbox>(
         // rebuild whole tree only if any colors change
         buildWhen: (prev, curr) =>
             prev.color1 != curr.color1 || prev.color2 != curr.color2,
@@ -65,122 +66,14 @@ class _RightDrawerState extends State<RightDrawer> {
 
                     Divider(color: dividerColor),
 
-                    /// edit tempo
-                    Row(children: [
-                      BlocBuilder<SettingsCubit, ChronosSettings>(
-                        buildWhen: (prev, curr) => prev.bpm != curr.bpm,
-                        builder: (_, settings) {
-                          final TextEditingController _tempoController =
-                              TextEditingController(
-                                  text: settings.bpm.toString());
-                          return Expanded(
-                              child: TextField(
-                                  style: textStyle,
-                                  textAlign: TextAlign.center,
-                                  controller: _tempoController,
-                                  keyboardType: TextInputType.number,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly
-                                  ],
-                                  onSubmitted: (str) {
-                                    int newBPM = int.parse(str);
-                                    BlocProvider.of<SettingsCubit>(context)
-                                        .updateBPM(newBPM);
-                                  }));
-                        },
-                      ),
-                      const Expanded(
-                        child: Text("bpm", textAlign: TextAlign.start),
-                      ),
-                      const HelpButton(
-                        msg:
-                            "bpm stands for beats per minute. You can also change it by sliding up or down on the metronome screen.",
-                      ),
-                    ]),
-
-                    Divider(color: dividerColor),
-
-                    /// edit time signature
-                    Row(children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            BlocBuilder<SettingsCubit, ChronosSettings>(
-                              buildWhen: (prev, curr) =>
-                                  prev.beatsPerBar != curr.beatsPerBar,
-                              builder: (_, settings) {
-                                final TextEditingController _tempoController =
-                                    TextEditingController(
-                                        text: settings.beatsPerBar.toString());
-                                return Expanded(
-                                    child: TextField(
-                                        style: textStyle,
-                                        textAlign: TextAlign.center,
-                                        controller: _tempoController,
-                                        keyboardType: TextInputType.number,
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter.digitsOnly
-                                        ],
-                                        onSubmitted: (str) {
-                                          int newBeatsPerBar = int.parse(str);
-                                          BlocProvider.of<SettingsCubit>(
-                                                  context)
-                                              .updateBeatsPerBar(
-                                                  newBeatsPerBar);
-                                        }));
-                              },
-                            ),
-                            const Text("/"),
-                            BlocBuilder<SettingsCubit, ChronosSettings>(
-                              buildWhen: (prev, curr) =>
-                                  prev.barNote != curr.barNote,
-                              builder: (_, settings) {
-                                final TextEditingController _tempoController =
-                                    TextEditingController(
-                                  text: settings.beatsPerBar.toString(),
-                                );
-                                return Expanded(
-                                    child: TextField(
-                                        style: textStyle,
-                                        textAlign: TextAlign.center,
-                                        controller: _tempoController,
-                                        keyboardType: TextInputType.number,
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter.digitsOnly
-                                        ],
-                                        onSubmitted: (str) {
-                                          int newBarNote = int.parse(str);
-                                          BlocProvider.of<SettingsCubit>(
-                                                  context)
-                                              .updateBarNote(newBarNote);
-                                        }));
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Expanded(
-                          child: Text(
-                        "time signature",
-                        textAlign: TextAlign.start,
-                      )),
-                      const HelpButton(
-                        msg:
-                            "The time signature specifies both the number of notes per bar, and their type. For example, 3/4 time tells us there are 3 notes per bar, and they're all quarter notes.",
-                      ),
-                    ]),
-
-                    Divider(color: dividerColor),
-
                     /// enabled indicators
                     Row(
                       children: const [
-                        Expanded(child: Text("enabled indicators")),
+                        Expanded(child: Text("indicators")),
                         Expanded(child: BeatIndicators()),
                         HelpButton(
-                          msg: """
-There are 3 beat indicators that we came up with: blinking (visual), vibration (haptic) and clicking (auditory). These can also be toggled at the bottom of the metronome screen
-""",
+                          msg:
+                              "Here you can toggle the 3 beat indicators that we came up with: blinking (visual), vibration (haptic) and clicking (auditory). These can also be changed at the bottom of the metronome screen",
                         ),
                       ],
                     ),

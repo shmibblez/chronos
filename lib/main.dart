@@ -1,4 +1,8 @@
-import 'package:chronos/cubits.dart';
+import 'package:chronos/cubits/chronos.dart';
+import 'package:chronos/cubits/hephaestus.dart';
+import 'package:chronos/cubits/hermes.dart';
+import 'package:chronos/left_drawer.dart';
+import 'package:chronos/right_drawer.dart';
 import 'package:chronos/zeus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,8 +12,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soundpool/soundpool.dart';
 import 'package:vibration/vibration.dart';
-
-import 'right_drawer.dart';
 
 void main() {
   runApp(const Root());
@@ -50,10 +52,12 @@ class LoadingPage extends StatelessWidget {
 
 class InitialData {
   InitialData({
-    required this.settings,
+    required this.toolbox,
+    required this.preset,
     required this.soundpool,
   });
-  final ChronosSettings settings;
+  final Toolbox toolbox;
+  final Preset preset;
   final Soundpool soundpool;
 }
 
@@ -66,10 +70,7 @@ class Root extends StatelessWidget {
     final int soundId = await soundpool.load(bytes);
     final bool canVibrate = (await Vibration.hasVibrator() ?? false) && !kIsWeb;
     return InitialData(
-      settings: ChronosSettings(
-        bpm: prefs.getInt("bpm") ?? 100,
-        beatsPerBar: prefs.getInt("beatsPerBar") ?? 4,
-        barNote: prefs.getInt("barNote") ?? 4,
+      toolbox: Toolbox(
         color1: Color(prefs.getInt("color1") ?? Colors.black87.value),
         color2: Color(prefs.getInt("color2") ?? Colors.white70.value),
         blinkEnabled: prefs.getBool("blinkEnabled") ?? true,
@@ -78,6 +79,10 @@ class Root extends StatelessWidget {
         vibrateAvailable: canVibrate, // #3
         soundId: soundId,
       ),
+      preset: Preset(
+          bpm: prefs.getInt("bpm") ?? 100,
+          beatsPerBar: prefs.getInt("beatsPerBar") ?? 4,
+          barNote: prefs.getInt("barNote") ?? 4),
       soundpool: soundpool,
     );
   }
@@ -88,6 +93,7 @@ class Root extends StatelessWidget {
         home: FutureBuilder<InitialData>(
             future: _initialSettings(),
             builder: (context, snap) {
+              // if not ready yet, show loading screen
               if (snap.connectionState != ConnectionState.done ||
                   snap.data == null) {
                 return const LoadingPage();
@@ -96,14 +102,20 @@ class Root extends StatelessWidget {
               return MultiBlocProvider(
                 providers: [
                   BlocProvider(
-                      lazy: false,
-                      create: (_) => SettingsCubit(
-                            snap.data!.settings,
-                          )),
+                    lazy: false,
+                    create: (_) => Hephaestus(snap.data!.toolbox),
+                  ),
                   BlocProvider(
-                      create: (BuildContext context1) => Chronos(
-                          context: context1, soundpool: snap.data!.soundpool),
-                      lazy: false),
+                    lazy: false,
+                    create: (_) => Hermes(snap.data!.preset),
+                  ),
+                  BlocProvider(
+                    lazy: false,
+                    create: (BuildContext context1) => Chronos(
+                      context: context1,
+                      soundpool: snap.data!.soundpool,
+                    ),
+                  ),
                 ],
                 child: Home(key: super.key),
               );
@@ -125,11 +137,7 @@ class _HomeState extends State<Home> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      drawer: Drawer(
-        child: ListView(
-            // settings and T&C
-            ),
-      ),
+      drawer: const LeftDrawer(),
       endDrawer: const RightDrawer(),
       onDrawerChanged: (open) {
         if (!open) {
@@ -159,7 +167,7 @@ class _HomeState extends State<Home> {
                 // change tempo by 1
                 double delta = details.delta.dy;
                 int bpmChange = -delta.sign.toInt();
-                BlocProvider.of<SettingsCubit>(context).updateBPMby(bpmChange);
+                BlocProvider.of<Hermes>(context).updateBPMby(bpmChange);
                 // debugPrint(
                 //   "VDU: delta: ${details.delta}, bpm change $bpmChange",
                 // );
@@ -187,7 +195,7 @@ class _HomeState extends State<Home> {
           ),
 
           /// bottom indicator options
-          BlocBuilder<SettingsCubit, ChronosSettings>(
+          BlocBuilder<Hephaestus, Toolbox>(
             // rebuild only if background color has changed
             buildWhen: (prev, curr) => prev.color1l != curr.color1l,
             builder: (_, settings) {
@@ -202,7 +210,7 @@ class _HomeState extends State<Home> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     /// bpm modifier and display
-                    BlocBuilder<SettingsCubit, ChronosSettings>(
+                    BlocBuilder<Hermes, Preset>(
                         buildWhen: (prev, curr) => prev.bpm != curr.bpm,
                         builder: (context, settings) {
                           final TextEditingController _tempoController =
@@ -224,7 +232,7 @@ class _HomeState extends State<Home> {
                                     ],
                                     onSubmitted: (str) {
                                       int newBPM = int.parse(str);
-                                      BlocProvider.of<SettingsCubit>(context)
+                                      BlocProvider.of<Hermes>(context)
                                           .updateBPM(newBPM);
                                     }),
                               ),
@@ -271,7 +279,7 @@ class BeatIndicators extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<SettingsCubit, ChronosSettings>(
+    return BlocBuilder<Hephaestus, Toolbox>(
         buildWhen: (prev, curr) =>
             prev.blinkEnabled != curr.blinkEnabled ||
             prev.vibrateEnabled != curr.vibrateEnabled ||
@@ -287,7 +295,7 @@ class BeatIndicators extends StatelessWidget {
               /// blink indicator
               IconButton(
                 onPressed: () {
-                  BlocProvider.of<SettingsCubit>(context).toggleBlinkEnabled();
+                  BlocProvider.of<Hephaestus>(context).toggleBlinkEnabled();
                 },
                 icon: settings.blinkEnabled
                     ? Icon(Icons.lightbulb, color: lighter)
@@ -298,8 +306,7 @@ class BeatIndicators extends StatelessWidget {
               if (settings.vibrateAvailable)
                 IconButton(
                   onPressed: () {
-                    BlocProvider.of<SettingsCubit>(context)
-                        .toggleVibrateEnabled();
+                    BlocProvider.of<Hephaestus>(context).toggleVibrateEnabled();
                   },
                   icon: settings.vibrateEnabled
                       ? Icon(Icons.vibration, color: lighter)
@@ -309,7 +316,7 @@ class BeatIndicators extends StatelessWidget {
               /// click indicator
               IconButton(
                 onPressed: () {
-                  BlocProvider.of<SettingsCubit>(context).toggleClickEnabled();
+                  BlocProvider.of<Hephaestus>(context).toggleClickEnabled();
                 },
                 icon: settings.clickEnabled
                     ? Icon(Icons.volume_up_rounded, color: lighter)

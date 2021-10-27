@@ -1,6 +1,8 @@
 import 'dart:async';
 
-import 'package:chronos/cubits.dart';
+import 'package:chronos/cubits/chronos.dart';
+import 'package:chronos/cubits/hephaestus.dart';
+import 'package:chronos/cubits/hermes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -21,7 +23,7 @@ class _ZeusState extends State<Zeus> {
   /// lay out thunderbolts evenly in Column
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<SettingsCubit, ChronosSettings>(
+    return BlocBuilder<Hermes, Preset>(
       buildWhen: (oldSettings, newSettings) =>
           oldSettings.beatsPerBar != newSettings.beatsPerBar,
       builder: (_, settings) {
@@ -112,8 +114,8 @@ class _ThunderboltState extends State<Thunderbolt> {
   Widget build(BuildContext context) {
     return Container(
         color: unleashed
-            ? BlocProvider.of<SettingsCubit>(context).state.color2
-            : BlocProvider.of<SettingsCubit>(context).state.color1);
+            ? BlocProvider.of<Hephaestus>(context).state.color2
+            : BlocProvider.of<Hephaestus>(context).state.color1);
   }
 
   /// set background color to on
