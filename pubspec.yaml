@@ -30,10 +30,16 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_bloc: ^7.3.0
-  sembast: ^3.1.1
+  # sembast: ^3.1.1
   shared_preferences: ^2.0.8
   soundpool: ^2.2.0
   vibration: ^1.7.4-nullsafety.0
+  tekartik_app_flutter_sembast:
+    git:
+      url: git://github.com/tekartik/app_flutter_utils.dart
+      ref: null_safety
+      path: app_sembast
+      version: ">=0.1.0"
 
 dev_dependencies:
   flutter_lints: ^1.0.0

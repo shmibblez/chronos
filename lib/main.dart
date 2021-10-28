@@ -1,6 +1,7 @@
 import 'package:chronos/cubits/chronos.dart';
 import 'package:chronos/cubits/hephaestus.dart';
 import 'package:chronos/cubits/hermes.dart';
+import 'package:chronos/cubits/mnemosyne.dart';
 import 'package:chronos/left_drawer.dart';
 import 'package:chronos/right_drawer.dart';
 import 'package:chronos/zeus.dart';
@@ -9,21 +10,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soundpool/soundpool.dart';
-import 'package:vibration/vibration.dart';
 
 void main() {
   runApp(const Root());
 }
 
 /// Some potential improvements, priority 1, 2, or 3
-/// - load last used settings, fall back to defaults in [ChronosConstants]
 /// - #2 (1) show beat strength editor (from 1-3) when long-press screen. Also store this in preset as array of numbers (0 for off, 3 for max strength)
-/// - #3 (1) check if vibration enabled, allow toggling if true
 /// - #4 (2) save last settings (last preset, tempo, enabled indicators, beat strength selections), careful with tempo since set very quickly
 /// - #5 (2) add tap to tempo option
-/// -
+/// - #6 (3) consider using ToggleButtons instead of row
+/// - #7 (2) load futures simultaneously with Future.wait instead of waiting one after another
+///
+
+/// FIXME: #8 left off setting up database.
+/// - database instance is loaded in Root._initialSetup(),
+/// - no need for SharedPreferences, can store everything with Sembast -> load settings and last preset from db
+/// - database is then passed along to Hermes.
+/// - Hermes will store database instance, and load and set presets as needed
+///.
 
 /// ChromosComstamts, some app constants
 class ChronosConstants {
@@ -62,36 +68,18 @@ class InitialData {
 }
 
 class Root extends StatelessWidget {
-  Future<InitialData> _initialSettings() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String sound = prefs.getString("bonkFile") ?? "sounds/wood_sound.wav";
-    final ByteData bytes = await rootBundle.load(sound);
-    final Soundpool soundpool = Soundpool.fromOptions();
-    final int soundId = await soundpool.load(bytes);
-    final bool canVibrate = (await Vibration.hasVibrator() ?? false) && !kIsWeb;
-    return InitialData(
-      toolbox: Toolbox(
-        color1: Color(prefs.getInt("color1") ?? Colors.black87.value),
-        color2: Color(prefs.getInt("color2") ?? Colors.white70.value),
-        blinkEnabled: prefs.getBool("blinkEnabled") ?? true,
-        vibrateEnabled: prefs.getBool("vibrateEnabled") ?? false, // #3
-        clickEnabled: prefs.getBool("clickEnabled") ?? true,
-        vibrateAvailable: canVibrate, // #3
-        soundId: soundId,
-      ),
-      preset: Preset(
-          bpm: prefs.getInt("bpm") ?? 100,
-          beatsPerBar: prefs.getInt("beatsPerBar") ?? 4,
-          barNote: prefs.getInt("barNote") ?? 4),
-      soundpool: soundpool,
-    );
+  Future<InitialData> _initialSetup() async {
+    // #7
+    // #7
+
+    return await Mnemosyne().awaken();
   }
 
   const Root({Key? key}) : super(key: key);
   @override
   Widget build(BuildContext context) => MaterialApp(
         home: FutureBuilder<InitialData>(
-            future: _initialSettings(),
+            future: _initialSetup(),
             builder: (context, snap) {
               // if not ready yet, show loading screen
               if (snap.connectionState != ConnectionState.done ||
@@ -289,6 +277,8 @@ class BeatIndicators extends StatelessWidget {
         builder: (context, settings) {
           Color darker = settings.color2d;
           Color lighter = settings.color2l;
+
+          /// #6
           return Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

@@ -65,6 +65,8 @@ class Chronos extends Cubit<int> {
     super.close();
     // _timer?.clo();
     _hermesSub.cancel();
+    _hephasestusSub.cancel();
+    soundpool.release();
   }
 
   /// instance variables
