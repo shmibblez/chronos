@@ -1,32 +1,41 @@
+import 'package:chronos/cubits/mnemosyne.dart';
 import 'package:chronos/main.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class Preset {
   Preset({
+    required this.key,
     required this.name,
     required int bpm,
     required int beatsPerBar,
     required this.barNote,
     required this.millis,
-  })  : bpm = _validateBPM(bpm),
-        beatsPerBar = _validateBeatsPerBar(beatsPerBar);
+  })  : bpm = validateBPM(bpm),
+        beatsPerBar = validateBeatsPerBar(beatsPerBar);
 
-  Preset.from(Preset old,
-      {String? name, int? bpm, int? beatsPerBar, int? barNote, int? millis})
-      : name = name ?? old.name,
+  Preset.from(
+    Preset old, {
+    String? key,
+    String? name,
+    int? bpm,
+    int? beatsPerBar,
+    int? barNote,
+    int? millis,
+  })  : key = key ?? old.key,
+        name = name ?? old.name,
         bpm = bpm ?? old.bpm,
         beatsPerBar = beatsPerBar ?? old.beatsPerBar,
         barNote = barNote ?? old.barNote,
         millis = millis ?? old.millis;
 
+  final String key;
   final String name;
   final int bpm;
   final int beatsPerBar;
   final int barNote;
   final int millis;
 
-  static int _validateBPM(int bpm) {
+  static int validateBPM(int bpm) {
     if (bpm > ChronosConstants.maxBPM) {
       return ChronosConstants.maxBPM;
     } else if (bpm < ChronosConstants.minBPM) {
@@ -35,7 +44,7 @@ class Preset {
     return bpm;
   }
 
-  static int _validateBeatsPerBar(int beats) {
+  static int validateBeatsPerBar(int beats) {
     if (beats > ChronosConstants.maxBeatsPerBar) {
       return ChronosConstants.maxBeatsPerBar;
     } else if (beats < ChronosConstants.minBeatsPerBar) {
@@ -44,21 +53,23 @@ class Preset {
     return beats;
   }
 
-  static int _validateBarNote(int barNote) {
+  static int validateBarNote(int barNote) {
     if (barNote <= 0) return 1;
     return barNote;
   }
 
   /// beat period in millis
   Duration get beatPeriod => Duration(milliseconds: (60000 / bpm).truncate());
+  bool get isDefault => name == "default";
 
   /// decodes preset from JSON in db
-  static Preset fromJSON(dynamic json) {
+  static Preset fromJSON(String key, dynamic json) {
     var segments = (json["sig"] as String)
         .split(RegExp(r'[|/]'))
         .map((e) => int.parse(e))
         .toList();
     return Preset(
+      key: key,
       name: json["name"],
       bpm: segments[0],
       beatsPerBar: segments[1],
@@ -75,16 +86,15 @@ class Preset {
       "millis": p.millis,
     };
   }
+
+  static final Map newPresetJSON = {
+    "name": "new preset",
+    "sig": "100|4/4",
+    "millis": DateTime.now().millisecondsSinceEpoch,
+  };
 }
 
-/// cubit for metronome settings
-/// FIXME: left off here
-/// finished ui for right drawer, now need to react accordingly to options
-/// - if vibrate or sound enabled, listen to Chronos and dispatch sound and vibrate events
-/// - when blink is off, [Zeus] has some adapted thunderbolts which means only borders of blocks blink, not whole block
-///
-/// for right drawer
-/// - add sound file picker option
+/// [Hermes] transports presets between Mnemosyne and widgets
 class Hermes extends Cubit<Preset> {
   Hermes(Preset initialState) : super(initialState);
 
@@ -94,22 +104,37 @@ class Hermes extends Cubit<Preset> {
   }
 
   void updateBPM(int bpm) {
-    int validated = Preset._validateBPM(bpm);
+    int validated = Preset.validateBPM(bpm);
     if (validated == state.bpm) return;
     emit(Preset.from(state, bpm: validated));
   }
 
   /// update beats per barNote
   void updateBeatsPerBar(int beats) {
-    int validated = Preset._validateBeatsPerBar(beats);
+    int validated = Preset.validateBeatsPerBar(beats);
     if (validated == state.beatsPerBar) return;
     emit(Preset.from(state, beatsPerBar: validated));
   }
 
   /// update barNote
   void updateBarNote(int barNote) {
-    int validated = Preset._validateBarNote(barNote);
+    int validated = Preset.validateBarNote(barNote);
     if (barNote == state.barNote) return;
     emit(Preset.from(state, barNote: validated));
+  }
+
+  Future<Preset> loadDefault() async {
+    Preset p = await Mnemosyne().defaultPreset();
+    emit(p);
+    return p;
+  }
+
+  Future<Preset> loadLastPreset() async {
+    Preset? p = await Mnemosyne().lastPreset(includeDefault: false);
+    if (p == null) {
+      await Mnemosyne().newPreset();
+    }
+    emit(p!);
+    return p;
   }
 }

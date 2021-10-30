@@ -22,14 +22,9 @@ void main() {
 /// - #5 (2) add tap to tempo option
 /// - #6 (3) consider using ToggleButtons instead of row
 /// - #7 (2) load futures simultaneously with Future.wait instead of waiting one after another
+/// - #! (1) when blink is off, [Zeus] has some adapted thunderbolts which means only borders of blocks blink, not whole block
+/// - #! (3) add sound file picker option in right drawer
 ///
-
-/// FIXME: #8 left off setting up database.
-/// - database instance is loaded in Root._initialSetup(),
-/// - no need for SharedPreferences, can store everything with Sembast -> load settings and last preset from db
-/// - database is then passed along to Hermes.
-/// - Hermes will store database instance, and load and set presets as needed
-///.
 
 /// ChromosComstamts, some app constants
 class ChronosConstants {

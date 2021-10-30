@@ -36,11 +36,11 @@ class Mnemosyne {
     db = await dbFactory.openDatabase(
       "chronos.db",
       version: 1,
-      onVersionChanged: (database, oldVer, newVer) {
+      onVersionChanged: (database, oldVer, newVer) async {
         if (oldVer <= 0) {
           // db created, set default values
           // default prefs
-          _prefStore!.record("prefs").put(database, {
+          await _prefStore!.record("prefs").put(database, {
             "color1": Colors.black87.value,
             "color2": Colors.white70.value,
             "blinkEnabled": true,
@@ -49,11 +49,14 @@ class Mnemosyne {
             // sound file selected
             "sound": "sounds/wood_sound.wav",
           });
+
+          debugPrint("prefstore: $_prefStore");
           // default presets
-          _presetStore!.record("default").put(
+          await _presetStore!.record("default").put(
                 database,
                 Preset.toJSON(
                   Preset(
+                    key: "default",
                     name: "default",
                     bpm: 100,
                     beatsPerBar: 4,
@@ -68,34 +71,64 @@ class Mnemosyne {
     );
 
     soundpool = Soundpool.fromOptions();
-    return InitialData(
-      toolbox: await _toolbox,
-      preset: await _lastPreset,
+    // begin loading
+    var t = toolbox();
+    var l = lastPreset();
+
+    var d = InitialData(
+      toolbox: await t,
+      preset: (await l)!, // can't be null since default is included
       soundpool: soundpool!,
     );
+
+    debugPrint("initial data ready, returning");
+
+    return d;
   }
 
-  Future<Toolbox> get _toolbox async {
+  Future<Toolbox> toolbox() async {
     var prefs = await _prefStore!.record("prefs").get(db!);
-
+    // load sound asset
     final ByteData bytes = await rootBundle.load(prefs["sound"]); // #7
+    // load asset into soundpool
     final int soundId = await soundpool!.load(bytes);
-    return Toolbox(
-      color1: prefs["color1"],
-      color2: prefs["color2"],
+    // check if can vibrate
+    final bool canVibrate = await Vibration.hasVibrator() ?? false;
+
+    var t = Toolbox(
+      color1: Color(prefs["color1"] as int),
+      color2: Color(prefs["color2"] as int),
       blinkEnabled: prefs["blinkEnabled"],
       vibrateEnabled: prefs["vibrateEnabled"],
       clickEnabled: prefs["clickEnabled"],
-      vibrateAvailable: (await Vibration.hasVibrator() ?? false) && !kIsWeb,
+      vibrateAvailable: canVibrate && !kIsWeb,
       soundId: soundId,
     );
+
+    debugPrint("toolbox: $t");
+
+    return t;
   }
 
-  Future<Preset> get _lastPreset async {
-    var finder = Finder(sortOrders: [SortOrder("millis")]);
-    var lastPreset =
-        (await _presetStore!.findFirst(db!, finder: finder))!.value;
+  /// Preset will be null if default not included and none exist yet
+  Future<Preset?> lastPreset({includeDefault = true}) async {
+    var finder = Finder(
+        sortOrders: [SortOrder("millis")],
+        filter: includeDefault ? null : Filter.notEquals("name", "default"));
+    var lastPreset = (await _presetStore!.findFirst(db!, finder: finder))!;
 
-    return Preset.fromJSON(lastPreset);
+    return Preset.fromJSON(lastPreset.key, lastPreset.value);
+  }
+
+  Future<Preset> defaultPreset() async {
+    var defaultPreset =
+        (await _presetStore!.record("default").getSnapshot(db!))!;
+    return Preset.fromJSON(defaultPreset.key, defaultPreset.value);
+  }
+
+  Future<Preset> newPreset() async {
+    var json = Preset.newPresetJSON;
+    String key = await _presetStore!.add(db!, json);
+    return Preset.fromJSON(key, json);
   }
 }

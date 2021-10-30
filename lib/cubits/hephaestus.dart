@@ -11,7 +11,9 @@ class Toolbox {
     required this.clickEnabled,
     required this.vibrateAvailable,
     required this.soundId,
-  });
+  }) {
+    debugPrint("Toolbox constructor called");
+  }
 
   /// copy constructor
   Toolbox.from(
