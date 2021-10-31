@@ -11,6 +11,7 @@ class Toolbox {
     required this.clickEnabled,
     required this.vibrateAvailable,
     required this.soundId,
+    required this.presetsEnabled,
   }) {
     debugPrint("Toolbox constructor called");
   }
@@ -24,13 +25,15 @@ class Toolbox {
     bool? vibrateEnabled,
     bool? clickEnabled,
     int? soundId,
+    bool? presetsEnabled,
   })  : color1 = color1 ?? old.color1,
         color2 = color2 ?? old.color2,
         blinkEnabled = blinkEnabled ?? old.blinkEnabled,
         vibrateEnabled = vibrateEnabled ?? old.vibrateEnabled,
         clickEnabled = clickEnabled ?? old.clickEnabled,
         vibrateAvailable = old.vibrateAvailable,
-        soundId = soundId ?? old.soundId;
+        soundId = soundId ?? old.soundId,
+        presetsEnabled = presetsEnabled ?? old.presetsEnabled;
 
   /// instance variables
   // main color, [Thunderbolt] color when idle
@@ -50,6 +53,7 @@ class Toolbox {
   final bool clickEnabled;
   final bool vibrateAvailable;
   final int soundId;
+  final bool presetsEnabled;
 
   /// taking [bk] as background color, return color for text such that it's visible on it
   ///
@@ -101,5 +105,10 @@ class Hephaestus extends Cubit<Toolbox> {
   /// update clivkEnabled
   void toggleClickEnabled() {
     emit(Toolbox.from(state, clickEnabled: !state.clickEnabled));
+  }
+
+  void updatePresetsEnabled(bool enabled) {
+    if (enabled == state.presetsEnabled) return;
+    emit(Toolbox.from(state, presetsEnabled: enabled));
   }
 }

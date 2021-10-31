@@ -48,9 +48,9 @@ class Mnemosyne {
             "clickEnabled": true,
             // sound file selected
             "sound": "sounds/wood_sound.wav",
+            "presetsEnabled": false,
           });
 
-          debugPrint("prefstore: $_prefStore");
           // default presets
           await _presetStore!.record("default").put(
                 database,
@@ -62,6 +62,7 @@ class Mnemosyne {
                     beatsPerBar: 4,
                     barNote: 4,
                     millis: DateTime.now().millisecondsSinceEpoch,
+                    notes: "",
                   ),
                 ),
                 // timestamp last used
@@ -103,6 +104,7 @@ class Mnemosyne {
       clickEnabled: prefs["clickEnabled"],
       vibrateAvailable: canVibrate && !kIsWeb,
       soundId: soundId,
+      presetsEnabled: prefs["presetsEnabled"],
     );
 
     debugPrint("toolbox: $t");
@@ -113,11 +115,14 @@ class Mnemosyne {
   /// Preset will be null if default not included and none exist yet
   Future<Preset?> lastPreset({includeDefault = true}) async {
     var finder = Finder(
-        sortOrders: [SortOrder("millis")],
-        filter: includeDefault ? null : Filter.notEquals("name", "default"));
-    var lastPreset = (await _presetStore!.findFirst(db!, finder: finder))!;
+      sortOrders: [SortOrder("millis")],
+      filter: includeDefault ? null : Filter.notEquals("name", "default"),
+    );
+    var lastPreset = (await _presetStore!.findFirst(db!, finder: finder));
 
-    return Preset.fromJSON(lastPreset.key, lastPreset.value);
+    return lastPreset == null
+        ? null
+        : Preset.fromJSON(lastPreset.key, lastPreset.value);
   }
 
   Future<Preset> defaultPreset() async {

@@ -28,6 +28,10 @@ void main() {
 
 /// ChromosComstamts, some app constants
 class ChronosConstants {
+  static const int maxNameLength = 100;
+  static const int minNameLength = 0;
+  static const int maxNotesLength = 750;
+  static const int minNotesLength = 0;
   static const int maxBPM = 500;
   static const int minBPM = 20;
   static const int maxBeatsPerBar = 20;
