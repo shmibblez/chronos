@@ -24,7 +24,7 @@ void main() {
 /// - #7 (2) load futures simultaneously with Future.wait instead of waiting one after another
 /// - #! (1) when blink is off, [Zeus] has some adapted thunderbolts which means only borders of blocks blink, not whole block
 /// - #! (3) add sound file picker option in right drawer
-///
+/// - #NaN (3) better way to cache loaded sounds, Mnemosyne could store them instead of PresetList
 
 /// ChromosComstamts, some app constants
 class ChronosConstants {
@@ -40,6 +40,26 @@ class ChronosConstants {
   static const int defaultBPM = 75; // resting heart bpm is about 70-80
   static const defaultColor1 = Colors.black87;
   static const defaultColor2 = Colors.white70;
+  static final defPrefs = {
+    "color1": defaultColor1.value,
+    "color2": defaultColor2.value,
+    "blinkEnabled": true,
+    "vibrateEnabled": false,
+    "clickEnabled": true,
+    "sound": "sounds/wood_sound.wav",
+    "presetsEnabled": false,
+  };
+  static final defPreset = Preset.toJSON(
+    Preset(
+      key: "default",
+      name: "default",
+      bpm: 100,
+      beatsPerBar: 4,
+      barNote: 4,
+      millis: DateTime.now().millisecondsSinceEpoch,
+      notes: "",
+    ),
+  );
 }
 
 class LoadingPage extends StatelessWidget {
@@ -70,7 +90,6 @@ class Root extends StatelessWidget {
   Future<InitialData> _initialSetup() async {
     // #7
     // #7
-
     return await Mnemosyne().awaken();
   }
 
@@ -129,13 +148,19 @@ class _HomeState extends State<Home> {
       onDrawerChanged: (open) {
         if (!open) {
           BlocProvider.of<Chronos>(context).start();
-          debugPrint("drawer closed");
+          // debugPrint("drawer closed");
+        } else {
+          BlocProvider.of<Chronos>(context).stop();
+          // debugPrint("drawer opened");
         }
       },
       onEndDrawerChanged: (open) {
         if (!open) {
           BlocProvider.of<Chronos>(context).start();
-          debugPrint("end drawer closed");
+          // debugPrint("end drawer closed");
+        } else {
+          BlocProvider.of<Chronos>(context).stop();
+          // debugPrint("end drawer opened");
         }
       },
       resizeToAvoidBottomInset: true,
@@ -158,15 +183,6 @@ class _HomeState extends State<Home> {
                 // debugPrint(
                 //   "VDU: delta: ${details.delta}, bpm change $bpmChange",
                 // );
-              },
-              // open drawer depending on swipe direction
-              onHorizontalDragEnd: (DragEndDetails details) {
-                BlocProvider.of<Chronos>(context).stop();
-                if ((details.primaryVelocity ?? 0) > 0) {
-                  _scaffoldKey.currentState!.openDrawer();
-                } else if ((details.primaryVelocity ?? 0) < 0) {
-                  _scaffoldKey.currentState!.openEndDrawer();
-                }
               },
               // on tap toggle metronome click -> play/pause
               onTap: () {

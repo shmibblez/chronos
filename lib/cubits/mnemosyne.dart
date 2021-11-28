@@ -40,40 +40,23 @@ class Mnemosyne {
         if (oldVer <= 0) {
           // db created, set default values
           // default prefs
-          await _prefStore!.record("prefs").put(database, {
-            "color1": Colors.black87.value,
-            "color2": Colors.white70.value,
-            "blinkEnabled": true,
-            "vibrateEnabled": false,
-            "clickEnabled": true,
-            // sound file selected
-            "sound": "sounds/wood_sound.wav",
-            "presetsEnabled": false,
-          });
+          await _prefStore!.record("prefs").put(
+                database,
+                ChronosConstants.defPrefs,
+              );
 
-          // default presets
+          // default preset
           await _presetStore!.record("default").put(
                 database,
-                Preset.toJSON(
-                  Preset(
-                    key: "default",
-                    name: "default",
-                    bpm: 100,
-                    beatsPerBar: 4,
-                    barNote: 4,
-                    millis: DateTime.now().millisecondsSinceEpoch,
-                    notes: "",
-                  ),
-                ),
-                // timestamp last used
+                ChronosConstants.defPreset,
               );
         }
       },
     );
 
-    soundpool = Soundpool.fromOptions();
+    soundpool = Soundpool.fromOptions(options: SoundpoolOptions.kDefault);
     // begin loading
-    var t = toolbox();
+    var t = lastToolbox();
     var l = lastPreset();
 
     var d = InitialData(
@@ -81,15 +64,13 @@ class Mnemosyne {
       preset: (await l)!, // can't be null since default is included
       soundpool: soundpool!,
     );
-
-    debugPrint("initial data ready, returning");
-
     return d;
   }
 
-  Future<Toolbox> toolbox() async {
+  /// loads last toolbox
+  Future<Toolbox> lastToolbox() async {
     var prefs = await _prefStore!.record("prefs").get(db!);
-    // load sound asset
+    // get sound file path
     final ByteData bytes = await rootBundle.load(prefs["sound"]); // #7
     // load asset into soundpool
     final int soundId = await soundpool!.load(bytes);
@@ -107,16 +88,17 @@ class Mnemosyne {
       presetsEnabled: prefs["presetsEnabled"],
     );
 
-    debugPrint("toolbox: $t");
-
     return t;
   }
 
+  /// loads last preset used
   /// Preset will be null if default not included and none exist yet
   Future<Preset?> lastPreset({includeDefault = true}) async {
     var finder = Finder(
-      sortOrders: [SortOrder("millis")],
+      sortOrders: [SortOrder("millis", false)],
+      // whether to include default preset or not
       filter: includeDefault ? null : Filter.notEquals("name", "default"),
+      limit: 1,
     );
     var lastPreset = (await _presetStore!.findFirst(db!, finder: finder));
 
@@ -126,14 +108,68 @@ class Mnemosyne {
   }
 
   Future<Preset> defaultPreset() async {
-    var defaultPreset =
-        (await _presetStore!.record("default").getSnapshot(db!))!;
-    return Preset.fromJSON(defaultPreset.key, defaultPreset.value);
+    var defaultPreset = await _presetStore!.record("default").getSnapshot(db!);
+    return Preset.fromJSON(defaultPreset!.key, defaultPreset.value!);
   }
 
+  /// creates new preset with random key
   Future<Preset> newPreset() async {
     var json = Preset.newPresetJSON;
     String key = await _presetStore!.add(db!, json);
     return Preset.fromJSON(key, json);
+  }
+
+  /// load some presets
+  /// if `exclude` set, excludes preset from search results
+  Future<List<Preset>> loadPresets({
+    int offset = 0,
+    int limit = 20,
+    Preset? exclude,
+    excludeDefault = true,
+  }) async {
+    var finder = Finder(
+      sortOrders: [SortOrder("millis", false)],
+      offset: offset,
+      limit: limit,
+      filter: Filter.and([
+        // if (exclude != null) Filter.notEquals(Field.key, exclude.key),
+        if (excludeDefault) Filter.notEquals(Field.key, "default"),
+      ]),
+    );
+    var presets = (await _presetStore!.find(db!, finder: finder)).map<Preset>(
+      (e) => Preset.fromJSON(e.key, e.value),
+    );
+
+    return presets.toList();
+  }
+
+  /// send update to db with values given
+  Future<void> updatePreset(
+    Preset old, {
+    String? key,
+    String? name,
+    int? bpm,
+    int? beatsPerBar,
+    int? barNote,
+    int? millis,
+    String? notes,
+  }) async {
+    Map updated = Preset.toJSON(Preset(
+      key: key ?? old.key,
+      name: name ?? old.name,
+      bpm: bpm ?? old.bpm,
+      beatsPerBar: beatsPerBar ?? old.beatsPerBar,
+      barNote: barNote ?? old.barNote,
+      millis: millis ?? old.millis,
+      notes: notes ?? old.notes,
+    ));
+    // update val
+    var val = await _presetStore!.record(old.key).update(db!, updated);
+    debugPrint("updated db entry: \n$val");
+  }
+
+  /// delete preset from db
+  Future<void> deletePreset(Preset p) async {
+    await _presetStore!.record(p.key).delete(db!);
   }
 }

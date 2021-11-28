@@ -59,7 +59,7 @@ class _RightDrawerState extends State<RightDrawer> {
                       ),
                       HelpButton(
                         msg:
-                            "You can play or pause metronome playback by tapping on the metronome screen.",
+                            "Play or pause metronome playback by tapping on the metronome screen.",
                       ),
                     ]),
 
@@ -72,7 +72,7 @@ class _RightDrawerState extends State<RightDrawer> {
                         Expanded(child: BeatIndicators()),
                         HelpButton(
                           msg:
-                              "Here you can toggle the 3 beat indicators that we came up with: blinking (visual), vibration (haptic) and clicking (auditory). These can also be changed at the bottom of the metronome screen",
+                              "Here you can toggle the 3 beat indicators that we came up with:\nblinking (visual), vibration (haptic) and clicking (auditory). These can also be changed at the bottom of the metronome screen",
                         ),
                       ],
                     ),
