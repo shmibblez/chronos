@@ -213,7 +213,6 @@ class Hermes extends Cubit<Preset> {
   Future<void> updateNotes(String notes) async {
     String validated = Preset.validateNotes(notes);
     if (validated == state.notes) return;
-    debugPrint("Hermes.updateNotes(): validated notes: $validated");
     var f = Mnemosyne().updatePreset(state, notes: validated);
     emit(Preset.from(state, notes: validated));
     await f;

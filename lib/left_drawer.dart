@@ -143,7 +143,6 @@ class _LeftDrawerState extends State<LeftDrawer> {
 
   void _saveNotes() {
     final str = Preset.validateNotes(_notesController.text);
-    debugPrint("_saveNotes(): note: $str");
     _notesController.text = str;
     BlocProvider.of<Hermes>(context).updateNotes(str);
     _saveNotesButtonController.disable();
@@ -439,7 +438,6 @@ class _LeftDrawerState extends State<LeftDrawer> {
                 child: BlocBuilder<Hermes, Preset>(
                   buildWhen: (prev, curr) => prev.notes != curr.notes,
                   builder: (_, preset) {
-                    debugPrint("rebuilt notes textfield: ${preset.notes}");
                     _notesController.text = preset.notes;
                     return Focus(
                       focusNode: _notesFocusNode,
