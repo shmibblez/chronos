@@ -25,7 +25,9 @@ void main() {
 /// - #! (1) when blink is off, [Zeus] has some adapted thunderbolts which means only borders of blocks blink, not whole block
 /// - #! (3) add sound file picker option in right drawer
 /// - #NaN (3) better way to cache loaded sounds, Mnemosyne could store them instead of PresetList
-
+/// - #9 (3) when item unfocused, whole preset should be saved, not just notes
+/// - #10 (3) show confirmation screen when deleting preset
+/// - #12 (1) add way to export/import preset
 /// ChromosComstamts, some app constants
 class ChronosConstants {
   static const int maxNameLength = 100;
@@ -180,9 +182,6 @@ class _HomeState extends State<Home> {
                 double delta = details.delta.dy;
                 int bpmChange = -delta.sign.toInt();
                 BlocProvider.of<Hermes>(context).updateBPMby(bpmChange);
-                // debugPrint(
-                //   "VDU: delta: ${details.delta}, bpm change $bpmChange",
-                // );
               },
               // on tap toggle metronome click -> play/pause
               onTap: () {

@@ -44,7 +44,8 @@ class Preset {
             other.name == name &&
             other.bpm == bpm &&
             other.beatsPerBar == beatsPerBar &&
-            other.barNote == barNote
+            other.barNote == barNote &&
+            other.notes == notes
         // && other.millis == millis // !!! NOTE !!! millis not tested since not shown in ui
         ;
   }
@@ -165,7 +166,7 @@ class Hermes extends Cubit<Preset> {
   Future<void> updateName(String name) async {
     String validated = Preset.validateName(name);
     if (validated == state.name) return;
-    var f = Mnemosyne().updatePreset(state, name: name);
+    var f = Mnemosyne().updatePreset(state, name: validated);
     emit(Preset.from(state, name: validated));
     await f;
   }
@@ -181,7 +182,7 @@ class Hermes extends Cubit<Preset> {
   ///   if future set, only set value
   ///   if future not set, set future and when complete, update bpm in db and close & set future to null
   ///
-  /// update bpm, notify Mnemosyne
+  /// update bpm, TODO: notify Mnemosyne
   Future<void> updateBPM(int bpm) async {
     int validated = Preset.validateBPM(bpm);
     if (validated == state.bpm) return;
@@ -193,9 +194,8 @@ class Hermes extends Cubit<Preset> {
   /// update beats per barNote, notify Mnemosyne
   Future<void> updateBeatsPerBar(int beats) async {
     int validated = Preset.validateBeatsPerBar(beats);
-    debugPrint("-beatsPerBar: $beats, validated: $validated");
     if (validated == state.beatsPerBar) return;
-    var f = Mnemosyne().updatePreset(state, beatsPerBar: beats);
+    var f = Mnemosyne().updatePreset(state, beatsPerBar: validated);
     emit(Preset.from(state, beatsPerBar: validated));
     await f;
   }
@@ -203,9 +203,8 @@ class Hermes extends Cubit<Preset> {
   /// update barNote, notify Mnemosyne
   Future<void> updateBarNote(int barNote) async {
     int validated = Preset.validateBarNote(barNote);
-    debugPrint("-barNotes: $barNote, validated: $validated");
     if (barNote == state.barNote) return;
-    var f = Mnemosyne().updatePreset(state, barNote: barNote);
+    var f = Mnemosyne().updatePreset(state, barNote: validated);
     emit(Preset.from(state, barNote: validated));
     await f;
   }
@@ -214,7 +213,8 @@ class Hermes extends Cubit<Preset> {
   Future<void> updateNotes(String notes) async {
     String validated = Preset.validateNotes(notes);
     if (validated == state.notes) return;
-    var f = Mnemosyne().updatePreset(state, notes: notes);
+    debugPrint("Hermes.updateNotes(): validated notes: $validated");
+    var f = Mnemosyne().updatePreset(state, notes: validated);
     emit(Preset.from(state, notes: validated));
     await f;
   }
@@ -251,7 +251,7 @@ class PresetList extends StatefulWidget {
     required this.delete,
     this.controller,
   }) : super(key: key);
-  final void Function(Preset) action;
+  final void Function() action;
   final void Function(Preset) delete;
   final ScrollController? controller;
 
@@ -260,15 +260,14 @@ class PresetList extends StatefulWidget {
 }
 
 class _PresetListState extends State<PresetList> {
-  late List<Preset> _presets;
   late bool _noMore;
   late bool _loading;
   late StreamSubscription<Preset> _presetStream;
 
+  List<Preset> get _presets => Mnemosyne().presets;
   @override
   void initState() {
     super.initState();
-    _presets = [];
     _noMore = false;
     _loading = false;
     _presetStream = BlocProvider.of<Hermes>(context).stream.listen((event) {
@@ -277,14 +276,19 @@ class _PresetListState extends State<PresetList> {
       if (i < 0) {
         if (event.isDefault) return;
         setState(() {
+          /// FIXME: preset list needs to be stored by Mnemosyne, who will
+          /// keep it in sync with database (latest used, deleted ones, etc)
+          ///
+          /// notify changes to notify, and await
+          /// when future complete, list will be reloaded with updated list
+          /// (Mnemosyne updates list when event notified)
           _presets.insert(0, event);
         });
-        return;
+      } else {
+        setState(() {
+          _presets.replaceRange(i, i + 1, [event]);
+        });
       }
-      setState(() {
-        _presets.replaceRange(i, i + 1, [event]);
-        debugPrint("replaced ${event.name}");
-      });
     });
   }
 
@@ -328,13 +332,14 @@ class _PresetListState extends State<PresetList> {
           String title = _presets[i].name;
           return ListTile(
             title: Text(title.isEmpty ? "new preset" : title),
-            subtitle: Text("key: ${_presets[i].key}, bpm ${_presets[i].bpm}"),
+            subtitle: Text("bpm: ${_presets[i].bpm}, key: ${_presets[i].key}"),
             onTap: () {
               _presetSelected(context, i);
             },
             trailing: IconButton(
               icon: const Icon(Icons.delete_forever),
               onPressed: () {
+                // #10
                 _presetDeleted(context, i);
               },
             ),
@@ -347,32 +352,36 @@ class _PresetListState extends State<PresetList> {
   void _loadPresets(BuildContext context) async {
     if (_loading) return;
     _loading = true;
-    var newPresets = await Mnemosyne().loadPresets(
-      offset: _presets.length,
-      exclude: BlocProvider.of<Hermes>(context).state,
-    );
+    final prevLength = _presets.length;
+    await Mnemosyne().loadPresets();
+    final newLength = _presets.length;
+    // also updates list shown
     setState(() {
-      if (newPresets.isEmpty) {
-        _noMore = true;
-      } else {
-        _presets.addAll(newPresets);
-      }
+      if (prevLength == newLength) _noMore = true;
       _loading = false;
     });
   }
 
-  void _presetSelected(BuildContext context, int i) {
+  void _presetSelected(BuildContext context, int i) async {
+    // Hermes tells Mnemosyne and she updates list
+    // must complete before setting state
+    await BlocProvider.of<Hermes>(context).selectPreset(
+      _presets[i],
+      DateTime.now().millisecondsSinceEpoch,
+    );
+    // also updates list shown
     setState(() {
-      Preset p = _presets.removeAt(i);
-      _presets.insert(0, p); // updates preset selected
-      widget.action(p);
+      // does ui stuff
+      widget.action();
     });
   }
 
-  void _presetDeleted(BuildContext contrxt, int i) {
+  void _presetDeleted(BuildContext context, int i) async {
+    Preset p = _presets.removeAt(i);
+    await BlocProvider.of<Hermes>(context).deletePreset(p);
+    // also updates list shown
     setState(() {
-      Preset p = _presets.removeAt(i);
-      // deletes preset
+      // does ui stuff
       widget.delete(p);
     });
   }

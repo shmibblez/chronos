@@ -24,46 +24,49 @@ class LeftDrawer extends StatefulWidget {
 }
 
 class _LeftDrawerState extends State<LeftDrawer> {
-  late SheetController _sc;
-  late SliderHeaderController _hc;
-  late TextEditingController _notesController;
-  late GlobalKey<FormFieldState> _notesGlobalKey;
-  late FocusNode _notesFocusNode;
-  late void Function() _notesFocusNodeListener;
-
-  // FIXME:
-  // - move text editing controllers here and dispose accordingly
-  // - add form around fields, submit when notes focus removed
-  //
-  // find cleaner solution for updating notes that takes throttling into account
+  late final SheetController _sc;
+  late final SliderHeaderController _hc;
+  late final TextEditingController _nameController;
+  late final TextEditingController _bpmController;
+  late final TextEditingController _beatsPerBarController;
+  late final TextEditingController _barNoteController;
+  late final TextEditingController _notesController;
+  late final FocusNode _notesFocusNode;
+  late final void Function() _notesFocusNodeListener;
+  late final SaveNotesButtonController _saveNotesButtonController;
+  late final GlobalKey<FormFieldState> _notesKey;
 
   @override
   void initState() {
     super.initState();
     _sc = SheetController();
     _hc = SliderHeaderController();
+    _nameController = TextEditingController();
+    _bpmController = TextEditingController();
+    _beatsPerBarController = TextEditingController();
+    _barNoteController = TextEditingController();
     _notesController = TextEditingController();
-    _notesGlobalKey = GlobalKey();
     _notesFocusNode = FocusNode();
     _notesFocusNodeListener = () {
       if (!_notesFocusNode.hasFocus) {
-        // FIXME: here submit field
-        if (!_notesFocusNode.hasFocus) {
-          _notesGlobalKey.currentState!.validate();
-        }
+        _saveNotes();
       }
     };
+    _saveNotesButtonController = SaveNotesButtonController();
+    _notesKey = GlobalKey();
+
     _notesFocusNode.addListener(_notesFocusNodeListener);
-    _notesController.addListener(() {
-      _notesController.
-    });
   }
 
   @override
   void dispose() {
     // text field controllers
+    _nameController.dispose();
+    _bpmController.dispose();
+    _beatsPerBarController.dispose();
+    _barNoteController.dispose();
     _notesController.dispose();
-    // other stuff
+
     _notesFocusNode.removeListener(_notesFocusNodeListener);
     _notesFocusNode.dispose();
     super.dispose();
@@ -72,14 +75,13 @@ class _LeftDrawerState extends State<LeftDrawer> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        // // remove focus from widget, allows submitting
-        // FocusScopeNode currentFocus = FocusScope.of(context);
-        // if (!currentFocus.hasPrimaryFocus) {
-        //   // currentFocus.unfocus();
-        //   currentFocus.dispose();
-        // }
-      },
+      // onTap: () {
+      //   // #9
+      //   _saveNotes();
+      //   // remove focus from widget, allows submitting
+      //   FocusScopeNode? currentFocus = FocusScope.of(context);
+      //   currentFocus.unfocus();
+      // },
       child: BlocBuilder<Hephaestus, Toolbox>(
         // rebuild whole tree only if any colors change
         // or if presets enabled state changed
@@ -113,13 +115,6 @@ class _LeftDrawerState extends State<LeftDrawer> {
                 snappings: [SnapSpec.headerSnap, 1],
                 positioning: SnapPositioning.relativeToAvailableSpace,
               ),
-              listener: (state) {
-                if (state.isExpanded) {
-                  _hc.notifyExpanded();
-                } else {
-                  _hc.notifyPeeking();
-                }
-              },
               body: buildPreset(settings),
               headerBuilder: (_, state) => SliderHeader(
                 state: _HeaderState.peeking,
@@ -127,22 +122,33 @@ class _LeftDrawerState extends State<LeftDrawer> {
                 newPreset: _onClickNewPreset,
                 controller: _hc,
               ),
+              listener: (state) {
+                if (state.isExpanded) {
+                  _hc.notifyExpanded();
+                } else {
+                  _hc.notifyPeeking();
+                }
+              },
               customBuilder: (_, controller, __) => PresetList(
                 controller: controller,
-                action: (preset) {
-                  _peek();
-                  BlocProvider.of<Hermes>(context).selectPreset(
-                    preset,
-                    DateTime.now().millisecondsSinceEpoch,
-                  );
-                },
-                delete: (preset) => _deletePreset(preset, enabledAfter: true),
+                action: _peek,
+                delete: (preset) => _onPresetDeleted(enabledAfter: true),
               ),
             ),
           );
         },
       ),
     );
+  }
+
+  void _saveNotes() {
+    final str = Preset.validateNotes(_notesController.text);
+    debugPrint("_saveNotes(): note: $str");
+    _notesController.text = str;
+    BlocProvider.of<Hermes>(context).updateNotes(str);
+    _saveNotesButtonController.disable();
+    _saveNotesButtonController.hide();
+    if (_notesFocusNode.hasFocus) _notesFocusNode.unfocus();
   }
 
   void _setPreset(bool enabled) {
@@ -190,10 +196,9 @@ class _LeftDrawerState extends State<LeftDrawer> {
     }
   }
 
-  Future<void> _deletePreset(Preset p, {required bool enabledAfter}) async {
+  Future<void> _onPresetDeleted({required bool enabledAfter}) async {
     // active preset can be deleted (first list item)
     Hermes h = BlocProvider.of<Hermes>(context);
-    await h.deletePreset(p);
     // if enabled after
     if (enabledAfter) {
       // load last preset to replace current one
@@ -254,11 +259,8 @@ class _LeftDrawerState extends State<LeftDrawer> {
                       prev.name != curr.name ||
                       prev.isDefault != curr.isDefault,
                   builder: (context, preset) {
-                    final TextEditingController _nameController =
-                        TextEditingController(
-                            text: preset.isDefault
-                                ? "Default Preset"
-                                : preset.name);
+                    _nameController.text =
+                        preset.isDefault ? "Default Preset" : preset.name;
                     return Expanded(
                       child: Row(
                         children: [
@@ -278,9 +280,6 @@ class _LeftDrawerState extends State<LeftDrawer> {
                                     .updateName(str);
                                 _nameController.text = Preset.validateName(str);
                               },
-                              onEditingComplete: () {
-                                debugPrint("onEditingComplete");
-                              },
                               decoration: InputDecoration(
                                   hintStyle: textStyle,
                                   hintText: preset.name.isEmpty
@@ -291,10 +290,11 @@ class _LeftDrawerState extends State<LeftDrawer> {
                           // default preset cannot be deleted
                           if (!preset.isDefault)
                             IconButton(
-                              onPressed: () => _deletePreset(
-                                preset,
-                                enabledAfter: false,
-                              ),
+                              onPressed: () async {
+                                await BlocProvider.of<Hermes>(context)
+                                    .deletePreset(preset);
+                                _onPresetDeleted(enabledAfter: false);
+                              },
                               icon: Icon(
                                 Icons.delete_forever,
                                 color: settings.color2,
@@ -312,8 +312,7 @@ class _LeftDrawerState extends State<LeftDrawer> {
                 BlocBuilder<Hermes, Preset>(
                   buildWhen: (prev, curr) => prev.bpm != curr.bpm,
                   builder: (_, settings) {
-                    final TextEditingController _bpmController =
-                        TextEditingController(text: settings.bpm.toString());
+                    _bpmController.text = settings.bpm.toString();
                     return Expanded(
                         child: TextField(
                             style: textStyle,
@@ -355,9 +354,8 @@ class _LeftDrawerState extends State<LeftDrawer> {
                           buildWhen: (prev, curr) =>
                               prev.beatsPerBar != curr.beatsPerBar,
                           builder: (_, settings) {
-                            final TextEditingController _beatsPerBarController =
-                                TextEditingController(
-                                    text: settings.beatsPerBar.toString());
+                            _beatsPerBarController.text =
+                                settings.beatsPerBar.toString();
                             return Expanded(
                                 child: TextField(
                                     style: textStyle,
@@ -383,10 +381,8 @@ class _LeftDrawerState extends State<LeftDrawer> {
                           buildWhen: (prev, curr) =>
                               prev.barNote != curr.barNote,
                           builder: (_, settings) {
-                            final TextEditingController _barNoteController =
-                                TextEditingController(
-                              text: settings.barNote.toString(),
-                            );
+                            _barNoteController.text =
+                                settings.barNote.toString();
                             return Expanded(
                                 child: TextField(
                                     style: textStyle,
@@ -443,26 +439,42 @@ class _LeftDrawerState extends State<LeftDrawer> {
                 child: BlocBuilder<Hermes, Preset>(
                   buildWhen: (prev, curr) => prev.notes != curr.notes,
                   builder: (_, preset) {
+                    debugPrint("rebuilt notes textfield: ${preset.notes}");
                     _notesController.text = preset.notes;
-                    return TextField(
-                      key: _notesGlobalKey,
-                      maxLines: null,
-                      style: textStyle,
-                      textAlign: TextAlign.start,
-                      controller: _notesController,
-                      keyboardType: TextInputType.multiline,
-                      onSubmitted: (str) {
-                        BlocProvider.of<Hermes>(context).updateNotes(str);
-                        _notesController.text =
-                            Preset.validateNotes(str).toString();
-                      },
-                      decoration: InputDecoration(
+                    return Focus(
+                      focusNode: _notesFocusNode,
+                      child: TextField(
+                        key: _notesKey,
+                        maxLines: null,
+                        style: textStyle,
+                        textAlign: TextAlign.start,
+                        controller: _notesController,
+                        keyboardType: TextInputType.multiline,
+                        onChanged: (str) {
+                          // enable save notes button if changes detected
+                          if (preset.notes != str) {
+                            _saveNotesButtonController.enable();
+                          } else {
+                            _saveNotesButtonController.disable();
+                            _saveNotesButtonController.hide();
+                          }
+                        },
+                        decoration: InputDecoration(
                           hintStyle: textStyle,
-                          hintText: preset.notes.isEmpty ? "edit notes" : null),
+                          hintText: "edit notes",
+                        ),
+                      ),
                     );
                   },
                 ),
               ),
+              SaveNotesButton(
+                controller: _saveNotesButtonController,
+                onPressed: _saveNotes,
+                initiallyEnabled: false,
+                initiallyHidden: true,
+              ),
+              // if bottom peeking, add spacing to show all notes
               if (settings.presetsEnabled)
                 const SizedBox(
                   height: kBottomNavigationBarHeight,
@@ -490,6 +502,12 @@ class SliderHeaderController {
   }
 }
 
+/// in charge of creating interface for preset list, and allowing its manipulation
+/// allows:
+/// - deletion of preset
+/// - selection of preset
+/// also:
+/// - notifies Mnemosyne of changes
 class SliderHeader extends StatefulWidget {
   const SliderHeader({
     Key? key,
@@ -591,5 +609,107 @@ class _SliderHeaderState extends State<SliderHeader> {
         ],
       ),
     );
+  }
+}
+
+class SaveNotesButtonController {
+  SaveNotesButtonController();
+  void Function()? _enable;
+  void Function()? _disable;
+  void Function()? _show;
+  void Function()? _hide;
+
+  void enable() {
+    _enable?.call();
+  }
+
+  void disable() {
+    _disable?.call();
+  }
+
+  void show() {
+    _show?.call();
+  }
+
+  void hide() {
+    _hide?.call();
+  }
+}
+
+class SaveNotesButton extends StatefulWidget {
+  const SaveNotesButton({
+    Key? key,
+    required this.controller,
+    required this.onPressed,
+    this.initiallyEnabled = true,
+    this.initiallyHidden = true,
+  }) : super(key: key);
+  final SaveNotesButtonController controller;
+  final void Function() onPressed;
+  final bool initiallyEnabled;
+  final bool initiallyHidden;
+
+  @override
+  State<StatefulWidget> createState() => _SaveNotesButtonState();
+}
+
+class _SaveNotesButtonState extends State<SaveNotesButton> {
+  late bool _enabled;
+  late bool _hidden;
+
+  @override
+  void initState() {
+    super.initState();
+    _enabled = widget.initiallyEnabled;
+    _hidden = widget.initiallyHidden;
+    widget.controller._enable = () {
+      setState(() {
+        _hidden = false;
+        _enabled = true;
+      });
+    };
+    widget.controller._disable = () {
+      setState(() {
+        _hidden = false;
+        _enabled = false;
+      });
+    };
+    widget.controller._hide = () {
+      setState(() {
+        _hidden = true;
+      });
+    };
+  }
+
+  @override
+  void didUpdateWidget(covariant SaveNotesButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    widget.controller._enable = () {
+      setState(() {
+        _hidden = false;
+        _enabled = true;
+      });
+    };
+    widget.controller._disable = () {
+      setState(() {
+        _hidden = false;
+        _enabled = false;
+      });
+    };
+    widget.controller._hide = () {
+      setState(() {
+        _hidden = true;
+      });
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _hidden
+        ? const SizedBox(width: 0, height: 0)
+        : ElevatedButton(
+            onPressed: _enabled ? widget.onPressed : null,
+            child: const Text("save notes"),
+          );
   }
 }

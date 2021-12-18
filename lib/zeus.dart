@@ -18,7 +18,7 @@ class _ZeusState extends State<Zeus> {
   late List<Thunderbolt> _thunderbolts;
   late List<ThunderboltController> _thunderboltControllers;
   StreamSubscription<int>? _chronosSub;
-  late int _previousBolt;
+  int? _previousBolt;
 
   /// lay out thunderbolts evenly in Column
   @override
@@ -37,12 +37,15 @@ class _ZeusState extends State<Zeus> {
           ));
         }
         // init [_previousBolt]
-        _previousBolt = -1;
+        _previousBolt ??= -1;
         // set [_chronosSub] to unleash current [Thunderbolt] and vanish previous one
         _chronosSub ??= BlocProvider.of<Chronos>(context).stream.listen(
           (int event) {
+            if (_previousBolt! >= _thunderbolts.length) {
+              _previousBolt = _thunderbolts.length - 1;
+            }
             if (_previousBolt != -1) {
-              _thunderboltControllers[_previousBolt].vanish!();
+              _thunderboltControllers[_previousBolt!].vanish!();
             }
             _thunderboltControllers[event].unleash!();
             _previousBolt = event;

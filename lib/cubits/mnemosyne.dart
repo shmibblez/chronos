@@ -24,6 +24,9 @@ class Mnemosyne {
   StoreRef<String, dynamic>? _prefStore;
   StoreRef<String, dynamic>? _presetStore;
   Soundpool? soundpool;
+  List<Preset>? _presets;
+
+  List<Preset> get presets => _presets ?? [];
 
   /// prepare db
   ///
@@ -31,6 +34,7 @@ class Mnemosyne {
   Future<InitialData> awaken() async {
     _prefStore = stringMapStoreFactory.store("prefs");
     _presetStore = stringMapStoreFactory.store("presets");
+    _presets = [];
 
     DatabaseFactory dbFactory = getDatabaseFactory();
     db = await dbFactory.openDatabase(
@@ -121,26 +125,22 @@ class Mnemosyne {
 
   /// load some presets
   /// if `exclude` set, excludes preset from search results
-  Future<List<Preset>> loadPresets({
-    int offset = 0,
+  Future<void> loadPresets({
     int limit = 20,
-    Preset? exclude,
-    excludeDefault = true,
   }) async {
     var finder = Finder(
       sortOrders: [SortOrder("millis", false)],
-      offset: offset,
+      offset: _presets!.length,
       limit: limit,
       filter: Filter.and([
-        // if (exclude != null) Filter.notEquals(Field.key, exclude.key),
-        if (excludeDefault) Filter.notEquals(Field.key, "default"),
+        // exclude default
+        Filter.notEquals(Field.key, "default"),
       ]),
     );
     var presets = (await _presetStore!.find(db!, finder: finder)).map<Preset>(
       (e) => Preset.fromJSON(e.key, e.value),
     );
-
-    return presets.toList();
+    _presets!.addAll(presets.toList());
   }
 
   /// send update to db with values given
@@ -154,7 +154,7 @@ class Mnemosyne {
     int? millis,
     String? notes,
   }) async {
-    Map updated = Preset.toJSON(Preset(
+    Preset updated = Preset(
       key: key ?? old.key,
       name: name ?? old.name,
       bpm: bpm ?? old.bpm,
@@ -162,14 +162,28 @@ class Mnemosyne {
       barNote: barNote ?? old.barNote,
       millis: millis ?? old.millis,
       notes: notes ?? old.notes,
-    ));
-    // update val
-    var val = await _presetStore!.record(old.key).update(db!, updated);
-    debugPrint("updated db entry: \n$val");
+    );
+    if (!old.isDefault) {
+      int i = _presets!.indexWhere((element) => element.key == old.key);
+      if (i != 0) {
+        // move updated preset to first
+        _presets!.removeAt(i);
+        _presets!.insert(0, updated);
+      }
+    }
+    // update db
+    Map map = Preset.toJSON(updated);
+    await _presetStore!.record(old.key).update(db!, map);
   }
 
   /// delete preset from db
   Future<void> deletePreset(Preset p) async {
+    // update list
+    // find indx of preset to remove
+    int i = _presets!.indexWhere((element) => element.key == p.key);
+    // remove from list
+    _presets!.removeAt(i);
+    // update db
     await _presetStore!.record(p.key).delete(db!);
   }
 }

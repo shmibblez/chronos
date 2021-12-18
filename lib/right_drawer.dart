@@ -78,6 +78,42 @@ class _RightDrawerState extends State<RightDrawer> {
                     ),
 
                     Divider(color: dividerColor),
+
+                    /// export presets (coming soon)
+                    /// #12
+                    Row(
+                      children: [
+                        const Expanded(child: Text("export presets")),
+                        Expanded(
+                            child: ElevatedButton(
+                          child: const Text("coming soon"),
+                          onPressed: () {},
+                        )),
+                        const HelpButton(
+                          msg:
+                              "We're currently working on a way to export/import your presets to/from a json file",
+                        ),
+                      ],
+                    ),
+
+                    Divider(color: dividerColor),
+
+                    /// import presets (coming soon)
+                    /// #12
+                    Row(
+                      children: [
+                        const Expanded(child: Text("import presets")),
+                        Expanded(
+                            child: ElevatedButton(
+                          child: const Text("coming soon"),
+                          onPressed: () {},
+                        )),
+                        const HelpButton(
+                          msg:
+                              "We're currently working on a way to export/import your presets to/from a json file",
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
