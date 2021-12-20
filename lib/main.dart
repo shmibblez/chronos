@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:chronos/cubits/chronos.dart';
 import 'package:chronos/cubits/hephaestus.dart';
 import 'package:chronos/cubits/hermes.dart';
@@ -89,7 +91,7 @@ class InitialData {
 class Root extends StatelessWidget {
   Future<InitialData> _initialSetup() async {
     // #7
-    debugPrint("awakening mnemosyne");
+    log("awakening mnemosyne");
     return await Mnemosyne().awaken();
   }
 
@@ -99,15 +101,13 @@ class Root extends StatelessWidget {
         home: FutureBuilder<InitialData>(
             future: _initialSetup(),
             builder: (context, snap) {
-              debugPrint(
-                  "initial setup connection state: ${snap.connectionState}");
+              log("initial setup connection state: ${snap.connectionState}");
               // if not ready yet, show loading screen
               if (snap.connectionState != ConnectionState.done) {
-                debugPrint("returning loading");
+                log("returning loading");
                 return const LoadingPage();
               }
-              debugPrint(
-                  "initial setup complete, setting up blocs, data: ${snap.data}");
+              log("initial setup complete, setting up blocs, data: ${snap.data}");
               // if future complete, use snap data
               return MultiBlocProvider(
                 providers: [
@@ -152,19 +152,19 @@ class _HomeState extends State<Home> {
       onDrawerChanged: (open) {
         if (!open) {
           BlocProvider.of<Chronos>(context).start();
-          // debugPrint("drawer closed");
+          // log("drawer closed");
         } else {
           BlocProvider.of<Chronos>(context).stop();
-          // debugPrint("drawer opened");
+          // log("drawer opened");
         }
       },
       onEndDrawerChanged: (open) {
         if (!open) {
           BlocProvider.of<Chronos>(context).start();
-          // debugPrint("end drawer closed");
+          // log("end drawer closed");
         } else {
           BlocProvider.of<Chronos>(context).stop();
-          // debugPrint("end drawer opened");
+          // log("end drawer opened");
         }
       },
       resizeToAvoidBottomInset: true,
