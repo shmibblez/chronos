@@ -235,7 +235,7 @@ class _HomeState extends State<Home> {
                                     onSubmitted: (str) {
                                       int newBPM = int.parse(str);
                                       BlocProvider.of<Hermes>(context)
-                                          .updateBPM(newBPM);
+                                          .updateBPMThrottled(newBPM);
                                     }),
                               ),
                               Text("bpm", style: textStyle),

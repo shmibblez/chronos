@@ -107,19 +107,28 @@ class Preset {
   bool get isDefault => name == "default";
 
   /// decodes preset from JSON in db
-  static Preset fromJSON(String key, dynamic json) {
+  static Preset fromJSON(
+    String key,
+    dynamic json, {
+    String? name,
+    int? bpm,
+    int? beatsPerBar,
+    int? barNote,
+    int? millis,
+    String? notes,
+  }) {
     var sigSegments = (json["sig"] as String)
         .split(RegExp(r'[|/]'))
         .map((e) => int.parse(e))
         .toList();
     return Preset(
       key: key,
-      name: json["name"],
-      bpm: sigSegments[0],
-      beatsPerBar: sigSegments[1],
-      barNote: sigSegments[2],
-      millis: json["millis"],
-      notes: json["notes"],
+      name: name ?? json["name"],
+      bpm: bpm ?? sigSegments[0],
+      beatsPerBar: beatsPerBar ?? sigSegments[1],
+      barNote: barNote ?? sigSegments[2],
+      millis: millis ?? json["millis"],
+      notes: notes ?? json["notes"],
     );
   }
 
@@ -177,18 +186,21 @@ class Hermes extends Cubit<Preset> {
     await updateBPM(state.bpm + bpm);
   }
 
-  /// FIXME: throttle updates since too quick when slide-setting bpm
-  /// Mnemosyne can store bpm value, and set future in 2 seconds to update
-  ///   if future set, only set value
-  ///   if future not set, set future and when complete, update bpm in db and close & set future to null
-  ///
-  /// update bpm, TODO: notify Mnemosyne
+  /// update bpm, notify Mnemosyne
   Future<void> updateBPM(int bpm) async {
     int validated = Preset.validateBPM(bpm);
     if (validated == state.bpm) return;
-    // var f = Mnemosyne().updatePreset(state,bpm:bpm);
+    var f = Mnemosyne().updatePreset(state, bpm: bpm);
     emit(Preset.from(state, bpm: validated));
-    // await f;
+    await f;
+  }
+
+  /// update bpm periodically, notify Mnemosyne
+  void updateBPMThrottled(int bpm) {
+    int validated = Preset.validateBPM(bpm);
+    if (validated == state.bpm) return;
+    Mnemosyne().updateBPMThrottled(key: state.key, bpm: bpm);
+    emit(Preset.from(state, bpm: validated));
   }
 
   /// update beats per barNote, notify Mnemosyne

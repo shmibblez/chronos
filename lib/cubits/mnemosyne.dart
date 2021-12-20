@@ -20,11 +20,13 @@ class Mnemosyne {
 
   Mnemosyne._();
 
-  Database? db;
+  Database? _db;
   StoreRef<String, dynamic>? _prefStore;
   StoreRef<String, dynamic>? _presetStore;
   Soundpool? soundpool;
   List<Preset>? _presets;
+  Map<String, int>? _pendingBPMUpdates;
+  Future<void>? _updateBPMs;
 
   List<Preset> get presets => _presets ?? [];
 
@@ -35,9 +37,10 @@ class Mnemosyne {
     _prefStore = stringMapStoreFactory.store("prefs");
     _presetStore = stringMapStoreFactory.store("presets");
     _presets = [];
+    _pendingBPMUpdates = {};
 
     DatabaseFactory dbFactory = getDatabaseFactory();
-    db = await dbFactory.openDatabase(
+    _db = await dbFactory.openDatabase(
       "chronos.db",
       version: 1,
       onVersionChanged: (database, oldVer, newVer) async {
@@ -73,7 +76,7 @@ class Mnemosyne {
 
   /// loads last toolbox
   Future<Toolbox> lastToolbox() async {
-    var prefs = await _prefStore!.record("prefs").get(db!);
+    var prefs = await _prefStore!.record("prefs").get(_db!);
     // get sound file path
     final ByteData bytes = await rootBundle.load(prefs["sound"]); // #7
     // load asset into soundpool
@@ -104,7 +107,7 @@ class Mnemosyne {
       filter: includeDefault ? null : Filter.notEquals("name", "default"),
       limit: 1,
     );
-    var lastPreset = (await _presetStore!.findFirst(db!, finder: finder));
+    var lastPreset = (await _presetStore!.findFirst(_db!, finder: finder));
 
     return lastPreset == null
         ? null
@@ -112,14 +115,14 @@ class Mnemosyne {
   }
 
   Future<Preset> defaultPreset() async {
-    var defaultPreset = await _presetStore!.record("default").getSnapshot(db!);
+    var defaultPreset = await _presetStore!.record("default").getSnapshot(_db!);
     return Preset.fromJSON(defaultPreset!.key, defaultPreset.value!);
   }
 
   /// creates new preset with random key
   Future<Preset> newPreset() async {
     var json = Preset.newPresetJSON;
-    String key = await _presetStore!.add(db!, json);
+    String key = await _presetStore!.add(_db!, json);
     return Preset.fromJSON(key, json);
   }
 
@@ -137,7 +140,7 @@ class Mnemosyne {
         Filter.notEquals(Field.key, "default"),
       ]),
     );
-    var presets = (await _presetStore!.find(db!, finder: finder)).map<Preset>(
+    var presets = (await _presetStore!.find(_db!, finder: finder)).map<Preset>(
       (e) => Preset.fromJSON(e.key, e.value),
     );
     _presets!.addAll(presets.toList());
@@ -173,7 +176,31 @@ class Mnemosyne {
     }
     // update db
     Map map = Preset.toJSON(updated);
-    await _presetStore!.record(old.key).update(db!, map);
+    await _presetStore!.record(old.key).update(_db!, map);
+  }
+
+  /// updates bpm after a while, not immediately
+  void updateBPMThrottled({required int bpm, required String key}) {
+    // add to pending updates
+    _pendingBPMUpdates![key] = bpm;
+
+    // reset future if needed
+    _updateBPMs ??= Future.delayed(
+      const Duration(milliseconds: 1500),
+      () async {
+        debugPrint("Mnemosyne.updateBPMThrottled: future updated");
+        // store keys and vals
+        final vals = _pendingBPMUpdates!.values.toList();
+        final keys = _pendingBPMUpdates!.keys.toList();
+        // reset pending updates in case new entry added while updating
+        // should take less than future duration
+        _pendingBPMUpdates = {};
+        _updateBPMs = null;
+        // update records
+        final records = _presetStore!.records(keys);
+        await records.update(_db!, vals);
+      },
+    );
   }
 
   /// delete preset from db
@@ -184,6 +211,6 @@ class Mnemosyne {
     // remove from list
     _presets!.removeAt(i);
     // update db
-    await _presetStore!.record(p.key).delete(db!);
+    await _presetStore!.record(p.key).delete(_db!);
   }
 }
