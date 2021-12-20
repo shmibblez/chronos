@@ -6,7 +6,6 @@ import 'package:chronos/main.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sembast/sembast.dart';
 import 'package:soundpool/soundpool.dart';
 import 'package:tekartik_app_flutter_sembast/sembast.dart';
 import 'package:vibration/vibration.dart';
@@ -39,7 +38,9 @@ class Mnemosyne {
     _presets = [];
     _pendingBPMUpdates = {};
 
+    debugPrint("getting database factory");
     DatabaseFactory dbFactory = getDatabaseFactory();
+    debugPrint("opening database");
     _db = await dbFactory.openDatabase(
       "chronos.db",
       version: 1,
@@ -47,43 +48,62 @@ class Mnemosyne {
         if (oldVer <= 0) {
           // db created, set default values
           // default prefs
+          debugPrint(
+              "setting default prefs, defPrefs: ${ChronosConstants.defPrefs}");
           await _prefStore!.record("prefs").put(
                 database,
                 ChronosConstants.defPrefs,
               );
 
           // default preset
+          debugPrint(
+              "setting default preset, defPreset: ${ChronosConstants.defPreset}");
           await _presetStore!.record("default").put(
                 database,
                 ChronosConstants.defPreset,
               );
+          debugPrint("set default values, init db complete");
         }
       },
     );
 
-    soundpool = Soundpool.fromOptions(options: SoundpoolOptions.kDefault);
+    debugPrint("setting up soundpool");
+    soundpool = Soundpool.fromOptions();
     // begin loading
+    debugPrint("loading toolbox");
     var t = lastToolbox();
+    debugPrint("loading preset");
     var l = lastPreset();
 
+    debugPrint("waiting for initial data");
     var d = InitialData(
       toolbox: await t,
       preset: (await l)!, // can't be null since default is included
       soundpool: soundpool!,
     );
+    debugPrint("initial data: $d");
     return d;
   }
 
   /// loads last toolbox
   Future<Toolbox> lastToolbox() async {
+    debugPrint("loading prefs from db");
     var prefs = await _prefStore!.record("prefs").get(_db!);
     // get sound file path
+    debugPrint(
+        "loading sound from root bundle, prefs[\"sound\"]: ${prefs["sound"]}");
     final ByteData bytes = await rootBundle.load(prefs["sound"]); // #7
+    debugPrint("bytes: $bytes");
     // load asset into soundpool
+    debugPrint("loading sound into soundpool");
     final int soundId = await soundpool!.load(bytes);
     // check if can vibrate
+    debugPrint("checking if can vibrate");
     final bool canVibrate = await Vibration.hasVibrator() ?? false;
+    debugPrint(
+        "color1: ${prefs["color1"]},\ncolor2: ${prefs["color2"]},\nsoundId:$soundId");
 
+    debugPrint("returning toolbox");
     var t = Toolbox(
       color1: Color(prefs["color1"] as int),
       color2: Color(prefs["color2"] as int),
@@ -94,6 +114,7 @@ class Mnemosyne {
       soundId: soundId,
       presetsEnabled: prefs["presetsEnabled"],
     );
+    debugPrint("toolbox: $t");
 
     return t;
   }
@@ -101,14 +122,17 @@ class Mnemosyne {
   /// loads last preset used
   /// Preset will be null if default not included and none exist yet
   Future<Preset?> lastPreset({includeDefault = true}) async {
+    debugPrint("setting up finder");
     var finder = Finder(
       sortOrders: [SortOrder("millis", false)],
       // whether to include default preset or not
       filter: includeDefault ? null : Filter.notEquals("name", "default"),
       limit: 1,
     );
+    debugPrint("getting last preset from db");
     var lastPreset = (await _presetStore!.findFirst(_db!, finder: finder));
 
+    debugPrint("returning last preset: $lastPreset");
     return lastPreset == null
         ? null
         : Preset.fromJSON(lastPreset.key, lastPreset.value);

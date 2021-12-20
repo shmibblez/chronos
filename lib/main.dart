@@ -5,10 +5,8 @@ import 'package:chronos/cubits/mnemosyne.dart';
 import 'package:chronos/left_drawer.dart';
 import 'package:chronos/right_drawer.dart';
 import 'package:chronos/zeus.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:soundpool/soundpool.dart';
 
@@ -48,7 +46,7 @@ class ChronosConstants {
     "blinkEnabled": true,
     "vibrateEnabled": false,
     "clickEnabled": true,
-    "sound": "sounds/wood_sound.wav",
+    "sound": "assets/sounds/wood_sound.wav",
     "presetsEnabled": false,
   };
   static final defPreset = Preset.toJSON(
@@ -91,7 +89,7 @@ class InitialData {
 class Root extends StatelessWidget {
   Future<InitialData> _initialSetup() async {
     // #7
-    // #7
+    debugPrint("awakening mnemosyne");
     return await Mnemosyne().awaken();
   }
 
@@ -101,11 +99,15 @@ class Root extends StatelessWidget {
         home: FutureBuilder<InitialData>(
             future: _initialSetup(),
             builder: (context, snap) {
+              debugPrint(
+                  "initial setup connection state: ${snap.connectionState}");
               // if not ready yet, show loading screen
-              if (snap.connectionState != ConnectionState.done ||
-                  snap.data == null) {
+              if (snap.connectionState != ConnectionState.done) {
+                debugPrint("returning loading");
                 return const LoadingPage();
               }
+              debugPrint(
+                  "initial setup complete, setting up blocs, data: ${snap.data}");
               // if future complete, use snap data
               return MultiBlocProvider(
                 providers: [

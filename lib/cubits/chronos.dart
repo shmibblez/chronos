@@ -147,7 +147,7 @@ class Chronos extends Cubit<int> {
     }
     emit(beat);
     if (_clickEnabled) soundpool.play(_soundId);
-    if (_vibrateEnabled) Vibration.vibrate();
+    if (_vibrateEnabled) Vibration.vibrate(duration: 100);
     return beat;
   }
 

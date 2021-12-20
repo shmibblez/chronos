@@ -287,12 +287,6 @@ class _PresetListState extends State<PresetList> {
       if (i < 0) {
         if (event.isDefault) return;
         setState(() {
-          /// FIXME: preset list needs to be stored by Mnemosyne, who will
-          /// keep it in sync with database (latest used, deleted ones, etc)
-          ///
-          /// notify changes to notify, and await
-          /// when future complete, list will be reloaded with updated list
-          /// (Mnemosyne updates list when event notified)
           _presets.insert(0, event);
         });
       } else {
