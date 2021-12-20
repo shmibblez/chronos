@@ -147,7 +147,15 @@ class Chronos extends Cubit<int> {
     }
     emit(beat);
     if (_clickEnabled) soundpool.play(_soundId);
-    if (_vibrateEnabled) Vibration.vibrate(duration: 100);
+    if (_vibrateEnabled) {
+      // accounts for soundpool delay
+      Future.delayed(
+        const Duration(milliseconds: 55),
+        () {
+          Vibration.vibrate(duration: 75);
+        },
+      );
+    }
     return beat;
   }
 

@@ -26,6 +26,7 @@ class LeftDrawer extends StatefulWidget {
 }
 
 class _LeftDrawerState extends State<LeftDrawer> {
+  // controllers
   late final SheetController _sc;
   late final SliderHeaderController _hc;
   late final TextEditingController _nameController;
@@ -33,14 +34,20 @@ class _LeftDrawerState extends State<LeftDrawer> {
   late final TextEditingController _beatsPerBarController;
   late final TextEditingController _barNoteController;
   late final TextEditingController _notesController;
-  late final FocusNode _notesFocusNode;
-  late final void Function() _notesFocusNodeListener;
   late final SaveNotesButtonController _saveNotesButtonController;
-  late final GlobalKey<FormFieldState> _notesKey;
+// focus nodes
+  late final FocusNode _nameFocusNode;
+  late final FocusNode _bpmFocusNode;
+  late final FocusNode _beatsPerBarFocusNode;
+  late final FocusNode _barNoteFocusNode;
+  late final FocusNode _notesFocusNode;
+  // used to know if need to update textfield values in case of preset or toolbox change
+  late String _oldPresetKey;
 
   @override
   void initState() {
     super.initState();
+    // controllers
     _sc = SheetController();
     _hc = SliderHeaderController();
     _nameController = TextEditingController();
@@ -48,109 +55,167 @@ class _LeftDrawerState extends State<LeftDrawer> {
     _beatsPerBarController = TextEditingController();
     _barNoteController = TextEditingController();
     _notesController = TextEditingController();
-    _notesFocusNode = FocusNode();
-    _notesFocusNodeListener = () {
-      if (!_notesFocusNode.hasFocus) {
-        _saveNotes();
-      }
-    };
     _saveNotesButtonController = SaveNotesButtonController();
-    _notesKey = GlobalKey();
+    // focus nodes
+    _nameFocusNode = FocusNode();
+    _bpmFocusNode = FocusNode();
+    _beatsPerBarFocusNode = FocusNode();
+    _barNoteFocusNode = FocusNode();
+    _notesFocusNode = FocusNode();
+    // focus node listeners (save changes when focus removed)
+    // no need to store since dont need to be removed (don't change and focus nodes disposed)
+    // for all of these:
+    // - if focus removed from textfield, save value
+    _nameFocusNode.addListener(() {
+      // save name if focus removed
+      if (!_nameFocusNode.hasFocus) _saveName(_nameController.text);
+    });
+    _bpmFocusNode.addListener(() {
+      // save bpm if focus removed
+      if (!_bpmFocusNode.hasFocus) _saveBPM(_bpmController.text);
+    });
+    _beatsPerBarFocusNode.addListener(() {
+      // save beats per bar if focus removed
+      if (!_beatsPerBarFocusNode.hasFocus) {
+        log("beats per bar focus removed");
+        _saveBeatsPerBar(_beatsPerBarController.text);
+      }
+    });
+    _barNoteFocusNode.addListener(() {
+      // save bar note if focus removed
+      if (!_barNoteFocusNode.hasFocus) _saveBarNote(_barNoteController.text);
+    });
+    _notesFocusNode.addListener(() {
+      // save notes if focus removed
+      if (!_notesFocusNode.hasFocus) _saveNotes();
+    });
 
-    _notesFocusNode.addListener(_notesFocusNodeListener);
+    _oldPresetKey = "";
   }
 
   @override
   void dispose() {
-    // text field controllers
+    // controllers
     _nameController.dispose();
     _bpmController.dispose();
     _beatsPerBarController.dispose();
     _barNoteController.dispose();
     _notesController.dispose();
-
-    _notesFocusNode.removeListener(_notesFocusNodeListener);
+    // _saveNotesButtonController.dispose();
+    // focus nodes
+    _nameFocusNode.dispose();
+    _bpmFocusNode.dispose();
+    _beatsPerBarFocusNode.dispose();
+    _barNoteFocusNode.dispose();
     _notesFocusNode.dispose();
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    log("left drawer rebuilt");
-    return GestureDetector(
-      // onTap: () {
-      //   // #9
-      //   _saveNotes();
-      //   // remove focus from widget, allows submitting
-      //   FocusScopeNode? currentFocus = FocusScope.of(context);
-      //   currentFocus.unfocus();
-      // },
-      child: BlocBuilder<Hephaestus, Toolbox>(
-        // rebuild whole tree only if any colors change
-        // or if presets enabled state changed
-        buildWhen: (ps, cs) =>
-            ps.color1 != cs.color1 ||
-            ps.color2 != cs.color2 ||
-            ps.presetsEnabled != cs.presetsEnabled,
-        builder: (_, settings) {
-          // set initial preset
-          _setPreset(settings.presetsEnabled);
-          // Mobile:
-          // Width = Screen width − 56 dp
-          // Maximum width: 320dp
-          // Maximum width applies only when using a left nav. When using a right nav,
-          // the panel can cover the full width of the screen.
-          // Desktop/Tablet:
-          // Maximum width for a left nav is 400dp.
-          // The right nav can vary depending on content.
-          final screenW = MediaQuery.of(context).size.width;
-          final w = min((screenW * (2 / 3)).truncate().toDouble(), 304.0);
-          // rebuild when relevant app settings change
-          return SizedBox(
-            height: double.infinity,
-            width: w,
-            child: Scaffold(
-              body: SlidingSheet(
-                controller: _sc,
-                minHeight: MediaQuery.of(context).size.height,
-                duration: const Duration(milliseconds: 300),
-                snapSpec: SnapSpec(
-                  initialSnap:
-                      settings.presetsEnabled ? SnapSpec.headerSnap : 0,
-                  snappings: [SnapSpec.headerSnap, 1],
-                  positioning: SnapPositioning.relativeToAvailableSpace,
-                ),
-                body: buildPreset(settings),
-                headerBuilder: (_, state) => SliderHeader(
-                  state: _HeaderState.peeking,
-                  action: _onClickPanelHeader,
-                  newPreset: _onClickNewPreset,
-                  controller: _hc,
-                ),
-                listener: (state) {
-                  if (state.isExpanded) {
-                    _hc.notifyExpanded();
-                  } else {
-                    _hc.notifyPeeking();
-                  }
-                },
-                customBuilder: (_, controller, __) => PresetList(
-                  controller: controller,
-                  action: _peek,
-                  delete: (preset) => _onPresetDeleted(enabledAfter: true),
-                ),
+    // log("left drawer rebuilt, controller: ${_beatsPerBarController.text}");
+    // used to have GestureDetector here, for detecting focus changes
+    // onTap: () {
+    //   // #9
+    //   _saveNotes();
+    //   // remove focus from widget, allows submitting
+    //   FocusScopeNode? currentFocus = FocusScope.of(context);
+    //   currentFocus.unfocus();
+    // },
+    return BlocBuilder<Hephaestus, Toolbox>(
+      // rebuild whole tree only if any colors change
+      // or if presets enabled state changed
+      buildWhen: (ps, cs) =>
+          ps.color1 != cs.color1 ||
+          ps.color2 != cs.color2 ||
+          ps.presetsEnabled != cs.presetsEnabled,
+      builder: (_, settings) {
+        // set initial preset
+        _setPreset(settings.presetsEnabled);
+        // Mobile:
+        // Width = Screen width − 56 dp
+        // Maximum width: 320dp
+        // Maximum width applies only when using a left nav. When using a right nav,
+        // the panel can cover the full width of the screen.
+        // Desktop/Tablet:
+        // Maximum width for a left nav is 400dp.
+        // The right nav can vary depending on content.
+        final screenW = MediaQuery.of(context).size.width;
+        final w = min((screenW * (2 / 3)).truncate().toDouble(), 304.0);
+        // rebuild when relevant app settings change
+        return SizedBox(
+          height: double.infinity,
+          width: w,
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            body: SlidingSheet(
+              controller: _sc,
+              minHeight: MediaQuery.of(context).size.height,
+              duration: const Duration(milliseconds: 300),
+              snapSpec: SnapSpec(
+                initialSnap: settings.presetsEnabled ? SnapSpec.headerSnap : 0,
+                snappings: [SnapSpec.headerSnap, 1],
+                positioning: SnapPositioning.relativeToAvailableSpace,
+              ),
+              body: buildPreset(settings),
+              headerBuilder: (_, state) => SliderHeader(
+                state: _HeaderState.peeking,
+                action: _onClickPanelHeader,
+                newPreset: _onClickNewPreset,
+                controller: _hc,
+              ),
+              listener: (state) {
+                if (state.isExpanded) {
+                  _hc.notifyExpanded();
+                } else {
+                  _hc.notifyPeeking();
+                }
+              },
+              customBuilder: (_, controller, __) => PresetList(
+                controller: controller,
+                action: _peek,
+                delete: (preset) => _onPresetDeleted(enabledAfter: true),
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
+  void _saveName(String str) {
+    log("***_saveName() ran");
+    BlocProvider.of<Hermes>(context).updateName(str);
+    _nameController.text = Preset.validateName(str);
+  }
+
+  void _saveBPM(String str) {
+    log("***_saveBPM() ran");
+    int bpm = int.parse(str);
+    BlocProvider.of<Hermes>(context).updateBPM(bpm);
+    _bpmController.text = Preset.validateBPM(bpm).toString();
+  }
+
+  void _saveBeatsPerBar(String str) {
+    log("***_saveBeatsPerBar: $str");
+    int beats = int.parse(str);
+    BlocProvider.of<Hermes>(context).updateBeatsPerBar(beats);
+    _beatsPerBarController.text = Preset.validateBeatsPerBar(beats).toString();
+  }
+
+  void _saveBarNote(String str) {
+    log("***_saveBarNote() ran");
+    int barNote = int.parse(str);
+    BlocProvider.of<Hermes>(context).updateBarNote(barNote);
+    _barNoteController.text = Preset.validateBarNote(barNote).toString();
+  }
+
   void _saveNotes() {
-    final str = Preset.validateNotes(_notesController.text);
-    _notesController.text = str;
-    BlocProvider.of<Hermes>(context).updateNotes(str);
+    log("***_saveNotes() ran");
+    final validated = Preset.validateNotes(_notesController.text);
+    _notesController.text = validated;
+    BlocProvider.of<Hermes>(context).updateNotes(validated);
     _saveNotesButtonController.disable();
     _saveNotesButtonController.hide();
     if (_notesFocusNode.hasFocus) _notesFocusNode.unfocus();
@@ -194,11 +259,7 @@ class _LeftDrawerState extends State<LeftDrawer> {
 
   void _onClickNewPreset() {
     BlocProvider.of<Hermes>(context).loadNewPreset();
-    if (_sc.state!.isCollapsed) {
-      _expand();
-    } else {
-      _peek();
-    }
+    _peek();
   }
 
   Future<void> _onPresetDeleted({required bool enabledAfter}) async {
@@ -221,7 +282,11 @@ class _LeftDrawerState extends State<LeftDrawer> {
     final Color textColor =
         settings.visibleTextColor(backgroundColor, settings.color2);
     final Color dividerColor = settings.color2d;
-    final TextStyle textStyle = TextStyle(color: textColor);
+    final TextStyle textStyle = TextStyle(color: textColor, fontSize: 14);
+    // update old preset key
+    WidgetsBinding.instance?.addPostFrameCallback((_) {
+      _oldPresetKey = BlocProvider.of<Hermes>(context).state.key;
+    });
     return Drawer(
       backgroundColor: backgroundColor,
       child: Padding(
@@ -235,10 +300,7 @@ class _LeftDrawerState extends State<LeftDrawer> {
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                 Text(
                   "Presets Enabled:",
-                  style: TextStyle(
-                    color: textColor,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: textStyle.copyWith(fontWeight: FontWeight.bold),
                 ),
                 BlocBuilder<Hephaestus, Toolbox>(builder: (_, t) {
                   return Switch(
@@ -264,13 +326,18 @@ class _LeftDrawerState extends State<LeftDrawer> {
                       prev.name != curr.name ||
                       prev.isDefault != curr.isDefault,
                   builder: (context, preset) {
-                    _nameController.text =
-                        preset.isDefault ? "Default Preset" : preset.name;
+                    if (preset.isDefault) {
+                      _nameController.text = "";
+                    } else if (_oldPresetKey != preset.key ||
+                        _nameController.text.isEmpty) {
+                      _nameController.text = preset.name;
+                    }
                     return Expanded(
                       child: Row(
                         children: [
                           Expanded(
                             child: TextField(
+                              focusNode: _nameFocusNode,
                               enabled: preset.isDefault ? false : true,
                               maxLength: ChronosConstants.maxNameLength,
                               readOnly: preset.isDefault,
@@ -280,16 +347,13 @@ class _LeftDrawerState extends State<LeftDrawer> {
                               inputFormatters: [
                                 FilteringTextInputFormatter.singleLineFormatter,
                               ],
-                              onSubmitted: (str) {
-                                BlocProvider.of<Hermes>(context)
-                                    .updateName(str);
-                                _nameController.text = Preset.validateName(str);
-                              },
+                              // onSubmitted:: _saveName,
                               decoration: InputDecoration(
-                                  hintStyle: textStyle,
-                                  hintText: preset.name.isEmpty
-                                      ? "new preset"
-                                      : null),
+                                hintStyle: textStyle,
+                                hintText: preset.isDefault
+                                    ? "Default Preset"
+                                    : "new preset",
+                              ),
                             ),
                           ),
                           // default preset cannot be deleted
@@ -312,30 +376,28 @@ class _LeftDrawerState extends State<LeftDrawer> {
                 ),
               ]),
 
-              /// edit tempo
+              /// edit bpm
               Row(children: [
                 BlocBuilder<Hermes, Preset>(
                   buildWhen: (prev, curr) => prev.bpm != curr.bpm,
-                  builder: (_, settings) {
-                    if (_bpmController.text.isEmpty) {
-                      _bpmController.text = settings.bpm.toString();
+                  builder: (_, preset) {
+                    if (_oldPresetKey != preset.key ||
+                        _bpmController.text.isEmpty) {
+                      _bpmController.text = preset.bpm.toString();
                     }
                     return Expanded(
-                        child: TextField(
-                            style: textStyle,
-                            textAlign: TextAlign.center,
-                            controller: _bpmController,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly
-                            ],
-                            onSubmitted: (str) {
-                              int newBPM = int.parse(str);
-                              BlocProvider.of<Hermes>(context)
-                                  .updateBPM(newBPM);
-                              _bpmController.text =
-                                  Preset.validateBPM(newBPM).toString();
-                            }));
+                      child: TextField(
+                        focusNode: _bpmFocusNode,
+                        style: textStyle,
+                        textAlign: TextAlign.center,
+                        controller: _bpmController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly
+                        ],
+                        // onSubmitted:: _saveBPM,
+                      ),
+                    );
                   },
                 ),
                 Expanded(
@@ -360,57 +422,56 @@ class _LeftDrawerState extends State<LeftDrawer> {
                         BlocBuilder<Hermes, Preset>(
                           buildWhen: (prev, curr) =>
                               prev.beatsPerBar != curr.beatsPerBar,
-                          builder: (_, settings) {
-                            if (_beatsPerBarController.text.isEmpty) {
+                          builder: (_, preset) {
+                            if (_oldPresetKey != preset.key ||
+                                _beatsPerBarController.text.isEmpty) {
+                              // log("(rebuild) text changed, | preset    : ${preset.beatsPerBar}");
+                              // log("                        | controller: ${_beatsPerBarController.text}");
                               _beatsPerBarController.text =
-                                  settings.beatsPerBar.toString();
-                            }
+                                  preset.beatsPerBar.toString();
+                            } //else {
+                            //   log("(rebuild) text not changed, | controller: ${_beatsPerBarController.text}");
+                            //   log("                            | preset    : ${preset.beatsPerBar}");
+                            // }
+                            // log("preset.beatsPerBar: ${preset.beatsPerBar}");
                             return Expanded(
-                                child: TextField(
-                                    style: textStyle,
-                                    textAlign: TextAlign.center,
-                                    controller: _beatsPerBarController,
-                                    keyboardType: TextInputType.number,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                    ],
-                                    onSubmitted: (str) {
-                                      int newBeatsPerBar = int.parse(str);
-                                      BlocProvider.of<Hermes>(context)
-                                          .updateBeatsPerBar(newBeatsPerBar);
-                                      _beatsPerBarController.text =
-                                          Preset.validateBeatsPerBar(
-                                                  newBeatsPerBar)
-                                              .toString();
-                                    }));
+                              child: TextField(
+                                focusNode: _beatsPerBarFocusNode,
+                                style: textStyle,
+                                textAlign: TextAlign.center,
+                                controller: _beatsPerBarController,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
+                                //  onSubmitted: _saveBeatsPerBar,
+                              ),
+                            );
                           },
                         ),
                         const Text("/"),
                         BlocBuilder<Hermes, Preset>(
                           buildWhen: (prev, curr) =>
                               prev.barNote != curr.barNote,
-                          builder: (_, settings) {
-                            if (_barNoteController.text.isEmpty) {
+                          builder: (_, preset) {
+                            if (_oldPresetKey != preset.key ||
+                                _barNoteController.text.isEmpty) {
                               _barNoteController.text =
-                                  settings.barNote.toString();
+                                  preset.barNote.toString();
                             }
                             return Expanded(
-                                child: TextField(
-                                    style: textStyle,
-                                    textAlign: TextAlign.center,
-                                    controller: _barNoteController,
-                                    keyboardType: TextInputType.number,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                    ],
-                                    onSubmitted: (str) {
-                                      int newBarNote = int.parse(str);
-                                      BlocProvider.of<Hermes>(context)
-                                          .updateBarNote(newBarNote);
-                                      _barNoteController.text =
-                                          Preset.validateBarNote(newBarNote)
-                                              .toString();
-                                    }));
+                              child: TextField(
+                                focusNode: _barNoteFocusNode,
+                                style: textStyle,
+                                textAlign: TextAlign.center,
+                                controller: _barNoteController,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
+                                // onSubmitted:: _saveBarNote,
+                              ),
+                            );
                           },
                         ),
                       ],
@@ -450,31 +511,29 @@ class _LeftDrawerState extends State<LeftDrawer> {
                 child: BlocBuilder<Hermes, Preset>(
                   buildWhen: (prev, curr) => prev.notes != curr.notes,
                   builder: (_, preset) {
-                    if (_notesController.text.isEmpty) {
+                    if (_oldPresetKey != preset.key ||
+                        _notesController.text.isEmpty) {
                       _notesController.text = preset.notes;
                     }
-                    return Focus(
+                    return TextField(
                       focusNode: _notesFocusNode,
-                      child: TextField(
-                        key: _notesKey,
-                        maxLines: null,
-                        style: textStyle,
-                        textAlign: TextAlign.start,
-                        controller: _notesController,
-                        keyboardType: TextInputType.multiline,
-                        onChanged: (str) {
-                          // enable save notes button if changes detected
-                          if (preset.notes != str) {
-                            _saveNotesButtonController.enable();
-                          } else {
-                            _saveNotesButtonController.disable();
-                            _saveNotesButtonController.hide();
-                          }
-                        },
-                        decoration: InputDecoration(
-                          hintStyle: textStyle,
-                          hintText: "edit notes",
-                        ),
+                      maxLines: null,
+                      style: textStyle,
+                      textAlign: TextAlign.start,
+                      controller: _notesController,
+                      keyboardType: TextInputType.multiline,
+                      onChanged: (str) {
+                        // enable save notes button if changes detected
+                        if (preset.notes != str) {
+                          _saveNotesButtonController.enable();
+                        } else {
+                          _saveNotesButtonController.disable();
+                          _saveNotesButtonController.hide();
+                        }
+                      },
+                      decoration: InputDecoration(
+                        hintStyle: textStyle,
+                        hintText: "edit notes",
                       ),
                     );
                   },

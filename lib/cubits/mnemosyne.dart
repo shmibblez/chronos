@@ -25,7 +25,7 @@ class Mnemosyne {
   StoreRef<String, dynamic>? _presetStore;
   Soundpool? soundpool;
   List<Preset>? _presets;
-  Map<String, int>? _pendingBPMUpdates;
+  Map<String, Preset>? _pendingBPMUpdates;
   Future<void>? _updateBPMs;
 
   List<Preset> get presets => _presets ?? [];
@@ -39,9 +39,7 @@ class Mnemosyne {
     _presets = [];
     _pendingBPMUpdates = {};
 
-    log("getting database factory");
     DatabaseFactory dbFactory = getDatabaseFactory();
-    log("opening database");
     _db = await dbFactory.openDatabase(
       "chronos.db",
       version: 1,
@@ -49,58 +47,43 @@ class Mnemosyne {
         if (oldVer <= 0) {
           // db created, set default values
           // default prefs
-          log("setting default prefs, defPrefs: ${ChronosConstants.defPrefs}");
           await _prefStore!.record("prefs").put(
                 database,
                 ChronosConstants.defPrefs,
               );
-
           // default preset
-          log("setting default preset, defPreset: ${ChronosConstants.defPreset}");
           await _presetStore!.record("default").put(
                 database,
                 ChronosConstants.defPreset,
               );
-          log("set default values, init db complete");
         }
       },
     );
 
-    log("setting up soundpool");
     soundpool = Soundpool.fromOptions();
     // begin loading
-    log("loading toolbox");
     var t = lastToolbox();
-    log("loading preset");
     var l = lastPreset();
 
-    log("waiting for initial data");
     var d = InitialData(
       toolbox: await t,
       preset: (await l)!, // can't be null since default is included
       soundpool: soundpool!,
     );
-    log("initial data: $d");
+
     return d;
   }
 
   /// loads last toolbox
   Future<Toolbox> lastToolbox() async {
-    log("loading prefs from db");
     var prefs = await _prefStore!.record("prefs").get(_db!);
     // get sound file path
-    log("loading sound from root bundle, prefs[\"sound\"]: ${prefs["sound"]}");
     final ByteData bytes = await rootBundle.load(prefs["sound"]); // #7
-    log("bytes: $bytes");
     // load asset into soundpool
-    log("loading sound into soundpool");
     final int soundId = await soundpool!.load(bytes);
     // check if can vibrate
-    log("checking if can vibrate");
     final bool canVibrate = await Vibration.hasVibrator() ?? false;
-    log("color1: ${prefs["color1"]},\ncolor2: ${prefs["color2"]},\nsoundId:$soundId");
 
-    log("returning toolbox");
     var t = Toolbox(
       color1: Color(prefs["color1"] as int),
       color2: Color(prefs["color2"] as int),
@@ -111,7 +94,6 @@ class Mnemosyne {
       soundId: soundId,
       presetsEnabled: prefs["presetsEnabled"],
     );
-    log("toolbox: $t");
 
     return t;
   }
@@ -119,17 +101,14 @@ class Mnemosyne {
   /// loads last preset used
   /// Preset will be null if default not included and none exist yet
   Future<Preset?> lastPreset({includeDefault = true}) async {
-    log("setting up finder");
     var finder = Finder(
       sortOrders: [SortOrder("millis", false)],
       // whether to include default preset or not
       filter: includeDefault ? null : Filter.notEquals("name", "default"),
       limit: 1,
     );
-    log("getting last preset from db");
     var lastPreset = (await _presetStore!.findFirst(_db!, finder: finder));
 
-    log("returning last preset: $lastPreset");
     return lastPreset == null
         ? null
         : Preset.fromJSON(lastPreset.key, lastPreset.value);
@@ -178,6 +157,7 @@ class Mnemosyne {
     int? millis,
     String? notes,
   }) async {
+    log("Mnemosyne.updatePreset() called");
     Preset updated = Preset(
       key: key ?? old.key,
       name: name ?? old.name,
@@ -201,17 +181,20 @@ class Mnemosyne {
   }
 
   /// updates bpm after a while, not immediately
-  void updateBPMThrottled({required int bpm, required String key}) {
-    // add to pending updates
-    _pendingBPMUpdates![key] = bpm;
+  /// [preset] has not been updated yet
+  void updateBPMThrottled(int bpm, Preset preset) {
+    log("Mnemosyne.updateBPMThrottled: queued");
+    // add preset with updated bpm to pending updates
+    _pendingBPMUpdates![preset.key] = Preset.from(preset, bpm: bpm);
 
     // reset future if needed
     _updateBPMs ??= Future.delayed(
       const Duration(milliseconds: 1500),
       () async {
-        log("Mnemosyne.updateBPMThrottled: future updated");
+        log("Mnemosyne.updateBPMThrottled: values saved");
         // store keys and vals
-        final vals = _pendingBPMUpdates!.values.toList();
+        final vals =
+            _pendingBPMUpdates!.values.map((p) => {"sig": p.sig()}).toList();
         final keys = _pendingBPMUpdates!.keys.toList();
         // reset pending updates in case new entry added while updating
         // should take less than future duration
@@ -230,7 +213,7 @@ class Mnemosyne {
     // find indx of preset to remove
     int i = _presets!.indexWhere((element) => element.key == p.key);
     // remove from list
-    _presets!.removeAt(i);
+    if (i >= 0) _presets!.removeAt(i);
     // update db
     await _presetStore!.record(p.key).delete(_db!);
   }

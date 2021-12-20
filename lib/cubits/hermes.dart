@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:chronos/cubits/mnemosyne.dart';
 import 'package:chronos/main.dart';
@@ -51,7 +52,7 @@ class Preset {
   }
 
   @override
-  int get hashCode => key.hashCode;
+  int get hashCode => "$key|$name|$bpm|$beatsPerBar|$barNote|$notes".hashCode;
 
   final String key;
   final String name;
@@ -136,10 +137,15 @@ class Preset {
   static Map toJSON(Preset p) {
     return {
       "name": p.name,
-      "sig": "${p.bpm}|${p.beatsPerBar}/${p.barNote}",
+      "sig": p.sig(),
       "millis": p.millis,
       "notes": p.notes,
     };
+  }
+
+  /// formats time signature into value stored in map
+  String sig() {
+    return "$bpm|$beatsPerBar/$barNote";
   }
 
   static final Map newPresetJSON = {
@@ -153,6 +159,14 @@ class Preset {
 /// [Hermes] transports presets between Mnemosyne and widgets
 class Hermes extends Cubit<Preset> {
   Hermes(Preset initialState) : super(initialState);
+
+  // @override
+  // void emit(Preset state) {
+  //   log("prev state: ${Preset.toJSON(this.state)}");
+  //   log("new state : ${Preset.toJSON(state)}");
+  //   super.emit(state);
+  //   log("Hermes emitted state");
+  // }
 
   /// !! does not emit change (millis not shown in UI) !!
   ///
@@ -195,16 +209,23 @@ class Hermes extends Cubit<Preset> {
     await f;
   }
 
+  /// update bpm by amount, notify Mnemosyne
+  void updateBPMbyThrottled(int bpm) {
+    if (bpm == 0) return;
+    updateBPMThrottled(bpm + state.bpm);
+  }
+
   /// update bpm periodically, notify Mnemosyne
   void updateBPMThrottled(int bpm) {
     int validated = Preset.validateBPM(bpm);
     if (validated == state.bpm) return;
-    Mnemosyne().updateBPMThrottled(key: state.key, bpm: bpm);
+    Mnemosyne().updateBPMThrottled(validated, state);
     emit(Preset.from(state, bpm: validated));
   }
 
   /// update beats per barNote, notify Mnemosyne
   Future<void> updateBeatsPerBar(int beats) async {
+    log("Hermes.updateBeatsPerBar(), beatsPerBar: $beats");
     int validated = Preset.validateBeatsPerBar(beats);
     if (validated == state.beatsPerBar) return;
     var f = Mnemosyne().updatePreset(state, beatsPerBar: validated);

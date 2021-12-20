@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:chronos/cubits/chronos.dart';
 import 'package:chronos/cubits/hephaestus.dart';
 import 'package:chronos/cubits/hermes.dart';
@@ -37,7 +35,7 @@ class ChronosConstants {
   static const int maxBPM = 500;
   static const int minBPM = 20;
   static const int maxBeatsPerBar = 20;
-  static const int minBeatsPerBar = 1;
+  static const int minBeatsPerBar = 2;
   static const int deltaBPM = maxBPM - minBPM;
   static const int defaultBPM = 75; // resting heart bpm is about 70-80
   static const defaultColor1 = Colors.black87;
@@ -91,45 +89,43 @@ class InitialData {
 class Root extends StatelessWidget {
   Future<InitialData> _initialSetup() async {
     // #7
-    log("awakening mnemosyne");
     return await Mnemosyne().awaken();
   }
 
   const Root({Key? key}) : super(key: key);
   @override
   Widget build(BuildContext context) => MaterialApp(
+        color: Colors.black,
         home: FutureBuilder<InitialData>(
-            future: _initialSetup(),
-            builder: (context, snap) {
-              log("initial setup connection state: ${snap.connectionState}");
-              // if not ready yet, show loading screen
-              if (snap.connectionState != ConnectionState.done) {
-                log("returning loading");
-                return const LoadingPage();
-              }
-              log("initial setup complete, setting up blocs, data: ${snap.data}");
-              // if future complete, use snap data
-              return MultiBlocProvider(
-                providers: [
-                  BlocProvider(
-                    lazy: false,
-                    create: (_) => Hephaestus(snap.data!.toolbox),
+          future: _initialSetup(),
+          builder: (context, snap) {
+            // if not ready yet, show loading screen
+            if (snap.connectionState != ConnectionState.done) {
+              return const LoadingPage();
+            }
+            // if future complete, use snap data
+            return MultiBlocProvider(
+              providers: [
+                BlocProvider(
+                  lazy: false,
+                  create: (_) => Hephaestus(snap.data!.toolbox),
+                ),
+                BlocProvider(
+                  lazy: false,
+                  create: (_) => Hermes(snap.data!.preset),
+                ),
+                BlocProvider(
+                  lazy: false,
+                  create: (BuildContext context1) => Chronos(
+                    context: context1,
+                    soundpool: snap.data!.soundpool,
                   ),
-                  BlocProvider(
-                    lazy: false,
-                    create: (_) => Hermes(snap.data!.preset),
-                  ),
-                  BlocProvider(
-                    lazy: false,
-                    create: (BuildContext context1) => Chronos(
-                      context: context1,
-                      soundpool: snap.data!.soundpool,
-                    ),
-                  ),
-                ],
-                child: Home(key: super.key),
-              );
-            }),
+                ),
+              ],
+              child: Home(key: super.key),
+            );
+          },
+        ),
       );
 }
 
@@ -142,9 +138,27 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  late final TextEditingController _bpmController;
+  // used to know if need to update textfield values in case of preset or toolbox change
+  Preset? _oldPreset;
+
+  @override
+  void initState() {
+    super.initState();
+    _bpmController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _bpmController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance?.addPostFrameCallback((_) {
+      _oldPreset = BlocProvider.of<Hermes>(context).state;
+    });
     return Scaffold(
       key: _scaffoldKey,
       drawer: const LeftDrawer(),
@@ -152,19 +166,15 @@ class _HomeState extends State<Home> {
       onDrawerChanged: (open) {
         if (!open) {
           BlocProvider.of<Chronos>(context).start();
-          // log("drawer closed");
         } else {
           BlocProvider.of<Chronos>(context).stop();
-          // log("drawer opened");
         }
       },
       onEndDrawerChanged: (open) {
         if (!open) {
           BlocProvider.of<Chronos>(context).start();
-          // log("end drawer closed");
         } else {
           BlocProvider.of<Chronos>(context).stop();
-          // log("end drawer opened");
         }
       },
       resizeToAvoidBottomInset: true,
@@ -175,26 +185,37 @@ class _HomeState extends State<Home> {
           /// - change bpm -> slide up or down
           /// - show options drawers -> slide left or right
           Expanded(
-            child: GestureDetector(
-              // change tempo based on scroll amount
-              // positive amount is down (tempo decrease)
-              // negative amount is up (tempo increase)
-              onVerticalDragUpdate: (DragUpdateDetails details) {
-                // change tempo by 1
-                double delta = details.delta.dy;
-                int bpmChange = -delta.sign.toInt();
-                BlocProvider.of<Hermes>(context).updateBPMby(bpmChange);
-              },
-              // on tap toggle metronome click -> play/pause
-              onTap: () {
-                BlocProvider.of<Chronos>(context).togglePlaying();
-              },
-              onLongPress: () {
-                // show dialog that allows toggling tempo display options
-              },
+            child: Stack(
+              children: [
+                /// blink indicator
+                const Zeus(),
 
-              /// blink indicator
-              child: const Zeus(),
+                /// for gesture options
+                Center(
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width - 70,
+                    child: GestureDetector(
+                      // change tempo based on scroll amount
+                      // positive amount is down (tempo decrease)
+                      // negative amount is up (tempo increase)
+                      onVerticalDragUpdate: (DragUpdateDetails details) {
+                        // change tempo by 1
+                        double delta = details.delta.dy;
+                        int bpmChange = -delta.sign.toInt();
+                        BlocProvider.of<Hermes>(context)
+                            .updateBPMbyThrottled(bpmChange);
+                      },
+                      // on tap toggle metronome click -> play/pause
+                      onTap: () {
+                        BlocProvider.of<Chronos>(context).togglePlaying();
+                      },
+                      onLongPress: () {
+                        // show dialog that allows toggling tempo display options
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -216,10 +237,12 @@ class _HomeState extends State<Home> {
                     /// bpm modifier and display
                     BlocBuilder<Hermes, Preset>(
                         buildWhen: (prev, curr) => prev.bpm != curr.bpm,
-                        builder: (context, settings) {
-                          final TextEditingController _tempoController =
-                              TextEditingController(
-                                  text: settings.bpm.toString());
+                        builder: (context, preset) {
+                          if (_oldPreset?.key != preset.key ||
+                              _oldPreset?.bpm != preset.bpm ||
+                              _bpmController.text.isEmpty) {
+                            _bpmController.text = preset.bpm.toString();
+                          }
                           return Expanded(
                               child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -229,7 +252,7 @@ class _HomeState extends State<Home> {
                                 child: TextField(
                                     style: textStyle,
                                     textAlign: TextAlign.center,
-                                    controller: _tempoController,
+                                    controller: _bpmController,
                                     keyboardType: TextInputType.number,
                                     inputFormatters: [
                                       FilteringTextInputFormatter.digitsOnly
@@ -237,7 +260,7 @@ class _HomeState extends State<Home> {
                                     onSubmitted: (str) {
                                       int newBPM = int.parse(str);
                                       BlocProvider.of<Hermes>(context)
-                                          .updateBPMThrottled(newBPM);
+                                          .updateBPM(newBPM);
                                     }),
                               ),
                               Text("bpm", style: textStyle),
