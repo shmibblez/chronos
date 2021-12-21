@@ -260,8 +260,8 @@ class Hermes extends Cubit<Preset> {
 
   /// load last used preset and set as current
   /// if no last preset exists, create and load new one
-  Future<Preset> loadLastPreset() async {
-    Preset? p = await Mnemosyne().lastPreset(includeDefault: false);
+  Future<Preset> loadLastPreset({bool includDefault = false}) async {
+    Preset? p = await Mnemosyne().lastPreset(includeDefault: includDefault);
     // if no preset exists create new one
     p ??= await Mnemosyne().newPreset();
     emit(p);
@@ -294,7 +294,7 @@ class PresetList extends StatefulWidget {
 class _PresetListState extends State<PresetList> {
   late bool _noMore;
   late bool _loading;
-  late StreamSubscription<Preset> _presetStream;
+  // late StreamSubscription<Preset> _presetStream;
 
   List<Preset> get _presets => Mnemosyne().presets;
   @override
@@ -302,25 +302,25 @@ class _PresetListState extends State<PresetList> {
     super.initState();
     _noMore = false;
     _loading = false;
-    _presetStream = BlocProvider.of<Hermes>(context).stream.listen((event) {
-      // index of updated preset
-      int i = _presets.indexWhere((element) => element.key == event.key);
-      if (i < 0) {
-        if (event.isDefault) return;
-        setState(() {
-          _presets.insert(0, event);
-        });
-      } else {
-        setState(() {
-          _presets.replaceRange(i, i + 1, [event]);
-        });
-      }
-    });
+    // _presetStream = BlocProvider.of<Hermes>(context).stream.listen((event) {
+    //   // index of updated preset
+    //   int i = _presets.indexWhere((element) => element.key == event.key);
+    //   if (i < 0) {
+    //     if (event.isDefault) return;
+    //     setState(() {
+    //       _presets.insert(0, event);
+    //     });
+    //   } else {
+    //     setState(() {
+    //       _presets.replaceRange(i, i + 1, [event]);
+    //     });
+    //   }
+    // });
   }
 
   @override
   void dispose() {
-    _presetStream.cancel();
+    // _presetStream.cancel();
     super.dispose();
   }
 
@@ -366,7 +366,7 @@ class _PresetListState extends State<PresetList> {
               icon: const Icon(Icons.delete_forever),
               onPressed: () {
                 // #10
-                _presetDeleted(context, i);
+                _presetDeleted(context, _presets[i]);
               },
             ),
           );
@@ -402,8 +402,8 @@ class _PresetListState extends State<PresetList> {
     });
   }
 
-  void _presetDeleted(BuildContext context, int i) async {
-    Preset p = _presets.removeAt(i);
+  void _presetDeleted(BuildContext context, Preset p) async {
+    // Preset p = _presets.removeAt(i);
     await BlocProvider.of<Hermes>(context).deletePreset(p);
     // also updates list shown
     setState(() {

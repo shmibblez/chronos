@@ -100,18 +100,28 @@ class Mnemosyne {
 
   /// loads last preset used
   /// Preset will be null if default not included and none exist yet
-  Future<Preset?> lastPreset({includeDefault = true}) async {
-    var finder = Finder(
+  Future<Preset?> lastPreset({includeDefault = false}) async {
+    final finder = Finder(
       sortOrders: [SortOrder("millis", false)],
       // whether to include default preset or not
       filter: includeDefault ? null : Filter.notEquals("name", "default"),
       limit: 1,
     );
-    var lastPreset = (await _presetStore!.findFirst(_db!, finder: finder));
-
-    return lastPreset == null
+    final lastPresetSnap =
+        (await _presetStore!.findFirst(_db!, finder: finder));
+    final lastPreset = lastPresetSnap == null
         ? null
-        : Preset.fromJSON(lastPreset.key, lastPreset.value);
+        : Preset.fromJSON(lastPresetSnap.key, lastPresetSnap.value);
+
+    // if last preset nonexistent return null
+    if (lastPreset == null) return lastPreset;
+
+    // if last preset exists, should be first in list,
+    // if not there, insert
+    if (_presets!.isEmpty || _presets!.first.key != lastPreset.key) {
+      _presets!.insert(0, lastPreset);
+    }
+    return lastPreset;
   }
 
   Future<Preset> defaultPreset() async {
@@ -121,9 +131,14 @@ class Mnemosyne {
 
   /// creates new preset with random key
   Future<Preset> newPreset() async {
+    // generate new preset json
     var json = Preset.newPresetJSON;
+    // add new preset to db
     String key = await _presetStore!.add(_db!, json);
-    return Preset.fromJSON(key, json);
+    // add new preset to cached list and return
+    Preset newPreset = Preset.fromJSON(key, json);
+    _presets!.insert(0, newPreset);
+    return newPreset;
   }
 
   /// load some presets
@@ -135,10 +150,8 @@ class Mnemosyne {
       sortOrders: [SortOrder("millis", false)],
       offset: _presets!.length,
       limit: limit,
-      filter: Filter.and([
-        // exclude default
-        Filter.notEquals(Field.key, "default"),
-      ]),
+      // exclude default
+      filter: Filter.notEquals(Field.key, "default"),
     );
     var presets = (await _presetStore!.find(_db!, finder: finder)).map<Preset>(
       (e) => Preset.fromJSON(e.key, e.value),
@@ -167,17 +180,17 @@ class Mnemosyne {
       millis: millis ?? old.millis,
       notes: notes ?? old.notes,
     );
+    // if preset not default
     if (!old.isDefault) {
       int i = _presets!.indexWhere((element) => element.key == old.key);
       if (i > 0 && i < _presets!.length) {
-        // move updated preset to first
+        // move preset to first in list
         _presets!.removeAt(i);
         _presets!.insert(0, updated);
       }
     }
     // update db
-    Map map = Preset.toJSON(updated);
-    await _presetStore!.record(old.key).update(_db!, map);
+    await _presetStore!.record(old.key).update(_db!, Preset.toJSON(updated));
   }
 
   /// updates bpm after a while, not immediately
