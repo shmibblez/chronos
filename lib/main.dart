@@ -96,35 +96,37 @@ class Root extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
         color: Colors.black,
-        home: FutureBuilder<InitialData>(
-          future: _initialSetup(),
-          builder: (context, snap) {
-            // if not ready yet, show loading screen
-            if (snap.connectionState != ConnectionState.done) {
-              return const LoadingPage();
-            }
-            // if future complete, use snap data
-            return MultiBlocProvider(
-              providers: [
-                BlocProvider(
-                  lazy: false,
-                  create: (_) => Hephaestus(snap.data!.toolbox),
-                ),
-                BlocProvider(
-                  lazy: false,
-                  create: (_) => Hermes(snap.data!.preset),
-                ),
-                BlocProvider(
-                  lazy: false,
-                  create: (BuildContext context1) => Chronos(
-                    context: context1,
-                    soundpool: snap.data!.soundpool,
+        home: SafeArea(
+          child: FutureBuilder<InitialData>(
+            future: _initialSetup(),
+            builder: (context, snap) {
+              // if not ready yet, show loading screen
+              if (snap.connectionState != ConnectionState.done) {
+                return const LoadingPage();
+              }
+              // if future complete, use snap data
+              return MultiBlocProvider(
+                providers: [
+                  BlocProvider(
+                    lazy: false,
+                    create: (_) => Hephaestus(snap.data!.toolbox),
                   ),
-                ),
-              ],
-              child: Home(key: super.key),
-            );
-          },
+                  BlocProvider(
+                    lazy: false,
+                    create: (_) => Hermes(snap.data!.preset),
+                  ),
+                  BlocProvider(
+                    lazy: false,
+                    create: (BuildContext context1) => Chronos(
+                      context: context1,
+                      soundpool: snap.data!.soundpool,
+                    ),
+                  ),
+                ],
+                child: Home(key: super.key),
+              );
+            },
+          ),
         ),
       );
 }
@@ -317,8 +319,9 @@ class BeatIndicators extends StatelessWidget {
           Color lighter = settings.color2l;
 
           /// #6
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          return Wrap(
+            direction: Axis.horizontal,
+            alignment: WrapAlignment.center,
             children: [
               /// blink indicator
               IconButton(

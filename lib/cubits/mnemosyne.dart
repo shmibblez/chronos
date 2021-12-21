@@ -63,7 +63,7 @@ class Mnemosyne {
     soundpool = Soundpool.fromOptions();
     // begin loading
     var t = lastToolbox();
-    var l = lastPreset();
+    var l = lastPreset(includeDefault: true);
 
     var d = InitialData(
       toolbox: await t,
@@ -104,21 +104,23 @@ class Mnemosyne {
     final finder = Finder(
       sortOrders: [SortOrder("millis", false)],
       // whether to include default preset or not
-      filter: includeDefault ? null : Filter.notEquals("name", "default"),
+      filter: includeDefault ? null : Filter.notEquals(Field.key, "default"),
       limit: 1,
     );
     final lastPresetSnap =
         (await _presetStore!.findFirst(_db!, finder: finder));
-    final lastPreset = lastPresetSnap == null
+    final lastPreset = (lastPresetSnap == null
         ? null
-        : Preset.fromJSON(lastPresetSnap.key, lastPresetSnap.value);
+        : Preset.fromJSON(lastPresetSnap.key, lastPresetSnap.value));
 
     // if last preset nonexistent return null
     if (lastPreset == null) return lastPreset;
 
     // if last preset exists, should be first in list,
     // if not there, insert
-    if (_presets!.isEmpty || _presets!.first.key != lastPreset.key) {
+    if (!lastPreset.isDefault &&
+        (_presets!.isEmpty || _presets!.first.key != lastPreset.key)) {
+      log("Mnemosyne.lastPreset: preset added to _presets list, key: ${lastPreset.key}");
       _presets!.insert(0, lastPreset);
     }
     return lastPreset;
@@ -137,6 +139,7 @@ class Mnemosyne {
     String key = await _presetStore!.add(_db!, json);
     // add new preset to cached list and return
     Preset newPreset = Preset.fromJSON(key, json);
+    log("Mnemosyne.newPreset: preset added to list, key: ${newPreset.key}");
     _presets!.insert(0, newPreset);
     return newPreset;
   }
@@ -170,7 +173,6 @@ class Mnemosyne {
     int? millis,
     String? notes,
   }) async {
-    log("Mnemosyne.updatePreset() called");
     Preset updated = Preset(
       key: key ?? old.key,
       name: name ?? old.name,
@@ -180,11 +182,15 @@ class Mnemosyne {
       millis: millis ?? old.millis,
       notes: notes ?? old.notes,
     );
-    // if preset not default
-    if (!old.isDefault) {
+    if (old.isDefault) {
+      // if preset default, ensure values are right
+      updated = Preset.from(updated, name: "default", key: "default");
+    } else {
+      // if preset not default, find index and then ...
       int i = _presets!.indexWhere((element) => element.key == old.key);
-      if (i > 0 && i < _presets!.length) {
-        // move preset to first in list
+      if (i >= 0 && i < _presets!.length) {
+        log("Mnemosyne.updatePreset: moved preset to first in list, key: ${updated.key}");
+        // ... move to first in list
         _presets!.removeAt(i);
         _presets!.insert(0, updated);
       }
@@ -196,7 +202,6 @@ class Mnemosyne {
   /// updates bpm after a while, not immediately
   /// [preset] has not been updated yet
   void updateBPMThrottled(int bpm, Preset preset) {
-    log("Mnemosyne.updateBPMThrottled: queued");
     // add preset with updated bpm to pending updates
     _pendingBPMUpdates![preset.key] = Preset.from(preset, bpm: bpm);
 
@@ -204,7 +209,6 @@ class Mnemosyne {
     _updateBPMs ??= Future.delayed(
       const Duration(milliseconds: 1500),
       () async {
-        log("Mnemosyne.updateBPMThrottled: values saved");
         // store keys and vals
         final vals =
             _pendingBPMUpdates!.values.map((p) => {"sig": p.sig()}).toList();
@@ -227,6 +231,7 @@ class Mnemosyne {
     int i = _presets!.indexWhere((element) => element.key == p.key);
     // remove from list
     if (i >= 0) _presets!.removeAt(i);
+    log("deleting preset at indx $i");
     // update db
     await _presetStore!.record(p.key).delete(_db!);
   }

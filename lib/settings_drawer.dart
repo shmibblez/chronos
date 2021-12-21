@@ -69,13 +69,13 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                     Row(
                       children: const [
                         Expanded(child: Text("indicators")),
-                        Expanded(child: BeatIndicators()),
                         HelpButton(
                           msg:
                               "Here you can toggle the 3 beat indicators that we came up with:\nblinking (visual), vibration (haptic) and clicking (auditory). These can also be changed at the bottom of the metronome screen",
                         ),
                       ],
                     ),
+                    const BeatIndicators(),
 
                     Divider(color: dividerColor),
 

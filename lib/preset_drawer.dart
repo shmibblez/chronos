@@ -114,7 +114,6 @@ class _PresetDrawerState extends State<PresetDrawer> {
 
   @override
   Widget build(BuildContext context) {
-    // log("left drawer rebuilt, controller: ${_beatsPerBarController.text}");
     // used to have GestureDetector here, for detecting focus changes
     // onTap: () {
     //   // #9
@@ -185,34 +184,29 @@ class _PresetDrawerState extends State<PresetDrawer> {
   }
 
   void _saveName(String str) {
-    log("***_saveName() ran");
     BlocProvider.of<Hermes>(context).updateName(str);
     _nameController.text = Preset.validateName(str);
   }
 
   void _saveBPM(String str) {
-    log("***_saveBPM() ran");
     int bpm = int.parse(str);
     BlocProvider.of<Hermes>(context).updateBPM(bpm);
     _bpmController.text = Preset.validateBPM(bpm).toString();
   }
 
   void _saveBeatsPerBar(String str) {
-    log("***_saveBeatsPerBar: $str");
     int beats = int.parse(str);
     BlocProvider.of<Hermes>(context).updateBeatsPerBar(beats);
     _beatsPerBarController.text = Preset.validateBeatsPerBar(beats).toString();
   }
 
   void _saveBarNote(String str) {
-    log("***_saveBarNote() ran");
     int barNote = int.parse(str);
     BlocProvider.of<Hermes>(context).updateBarNote(barNote);
     _barNoteController.text = Preset.validateBarNote(barNote).toString();
   }
 
   void _saveNotes() {
-    log("***_saveNotes() ran");
     final validated = Preset.validateNotes(_notesController.text);
     _notesController.text = validated;
     BlocProvider.of<Hermes>(context).updateNotes(validated);
@@ -290,7 +284,7 @@ class _PresetDrawerState extends State<PresetDrawer> {
     return Drawer(
       backgroundColor: backgroundColor,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 8),
         child: DefaultTextStyle(
           style: textStyle,
           child: Column(
@@ -304,6 +298,7 @@ class _PresetDrawerState extends State<PresetDrawer> {
                 ),
                 BlocBuilder<Hephaestus, Toolbox>(builder: (_, t) {
                   return Switch(
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     value: t.presetsEnabled,
                     onChanged: (enabled) async {
                       _setPreset(enabled);
@@ -313,8 +308,6 @@ class _PresetDrawerState extends State<PresetDrawer> {
                   );
                 }),
               ]),
-              // bottom spacing
-              const SizedBox(height: 8),
 
               /// separator
               Divider(color: dividerColor),
@@ -362,7 +355,7 @@ class _PresetDrawerState extends State<PresetDrawer> {
                               onPressed: () async {
                                 await BlocProvider.of<Hermes>(context)
                                     .deletePreset(preset);
-                                _onPresetDeleted(enabledAfter: false);
+                                _onPresetDeleted(enabledAfter: true);
                               },
                               icon: Icon(
                                 Icons.delete_forever,
@@ -425,15 +418,9 @@ class _PresetDrawerState extends State<PresetDrawer> {
                           builder: (_, preset) {
                             if (_oldPresetKey != preset.key ||
                                 _beatsPerBarController.text.isEmpty) {
-                              // log("(rebuild) text changed, | preset    : ${preset.beatsPerBar}");
-                              // log("                        | controller: ${_beatsPerBarController.text}");
                               _beatsPerBarController.text =
                                   preset.beatsPerBar.toString();
-                            } //else {
-                            //   log("(rebuild) text not changed, | controller: ${_beatsPerBarController.text}");
-                            //   log("                            | preset    : ${preset.beatsPerBar}");
-                            // }
-                            // log("preset.beatsPerBar: ${preset.beatsPerBar}");
+                            }
                             return Expanded(
                               child: TextField(
                                 focusNode: _beatsPerBarFocusNode,

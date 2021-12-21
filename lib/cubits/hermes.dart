@@ -105,7 +105,7 @@ class Preset {
 
   /// beat period in millis
   Duration get beatPeriod => Duration(milliseconds: (60000 / bpm).truncate());
-  bool get isDefault => name == "default";
+  bool get isDefault => key == "default";
 
   /// decodes preset from JSON in db
   static Preset fromJSON(
@@ -160,24 +160,15 @@ class Preset {
 class Hermes extends Cubit<Preset> {
   Hermes(Preset initialState) : super(initialState);
 
-  // @override
-  // void emit(Preset state) {
-  //   log("prev state: ${Preset.toJSON(this.state)}");
-  //   log("new state : ${Preset.toJSON(state)}");
-  //   super.emit(state);
-  //   log("Hermes emitted state");
-  // }
-
   /// !! does not emit change (millis not shown in UI) !!
   ///
   /// tells Mnemosyne to update millis
   Future<void> selectPreset(Preset p, int millis) async {
-    var f = Mnemosyne().updatePreset(
-      state,
+    await Mnemosyne().updatePreset(
+      p,
       millis: millis,
     );
     emit(Preset.from(p, millis: millis));
-    await f;
   }
 
   /// tells Mnemosyne to delete preset from db
@@ -225,7 +216,6 @@ class Hermes extends Cubit<Preset> {
 
   /// update beats per barNote, notify Mnemosyne
   Future<void> updateBeatsPerBar(int beats) async {
-    log("Hermes.updateBeatsPerBar(), beatsPerBar: $beats");
     int validated = Preset.validateBeatsPerBar(beats);
     if (validated == state.beatsPerBar) return;
     var f = Mnemosyne().updatePreset(state, beatsPerBar: validated);
@@ -294,7 +284,7 @@ class PresetList extends StatefulWidget {
 class _PresetListState extends State<PresetList> {
   late bool _noMore;
   late bool _loading;
-  // late StreamSubscription<Preset> _presetStream;
+  late StreamSubscription<Preset> _presetStream;
 
   List<Preset> get _presets => Mnemosyne().presets;
   @override
@@ -302,6 +292,11 @@ class _PresetListState extends State<PresetList> {
     super.initState();
     _noMore = false;
     _loading = false;
+    _presetStream = BlocProvider.of<Hermes>(context).stream.listen((event) {
+      setState(() {
+        // updates Mnemosyne list
+      });
+    });
     // _presetStream = BlocProvider.of<Hermes>(context).stream.listen((event) {
     //   // index of updated preset
     //   int i = _presets.indexWhere((element) => element.key == event.key);
@@ -320,7 +315,7 @@ class _PresetListState extends State<PresetList> {
 
   @override
   void dispose() {
-    // _presetStream.cancel();
+    _presetStream.cancel();
     super.dispose();
   }
 
@@ -358,7 +353,8 @@ class _PresetListState extends State<PresetList> {
           String title = _presets[i].name;
           return ListTile(
             title: Text(title.isEmpty ? "new preset" : title),
-            subtitle: Text("bpm: ${_presets[i].bpm}, key: ${_presets[i].key}"),
+            subtitle: Text(
+                "bpm: ${_presets[i].bpm}, key: ${_presets[i].key.substring(_presets[i].key.length - 4)}"),
             onTap: () {
               _presetSelected(context, i);
             },
@@ -391,6 +387,7 @@ class _PresetListState extends State<PresetList> {
   void _presetSelected(BuildContext context, int i) async {
     // Hermes tells Mnemosyne and she updates list
     // must complete before setting state
+    log("index $i selected");
     await BlocProvider.of<Hermes>(context).selectPreset(
       _presets[i],
       DateTime.now().millisecondsSinceEpoch,
