@@ -10,7 +10,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sliding_sheet/sliding_sheet.dart';
 import 'dart:math' show min;
 
-/// The [LeftDrawer] is [Hermes]'s domain, and is where metronome presets live
+/// The [PresetDrawer] is [Hermes]'s domain, and is where metronome presets live
 /// presets store the following
 /// - preset name
 /// - notes (so user can store progress and write down tempos)
@@ -18,14 +18,14 @@ import 'dart:math' show min;
 /// - date last used
 ///
 /// selected preset is shown, all values are shown in [TextField]s so can be easily edited
-class LeftDrawer extends StatefulWidget {
-  const LeftDrawer({Key? key}) : super(key: key);
+class PresetDrawer extends StatefulWidget {
+  const PresetDrawer({Key? key}) : super(key: key);
 
   @override
-  State<StatefulWidget> createState() => _LeftDrawerState();
+  State<StatefulWidget> createState() => _PresetDrawerState();
 }
 
-class _LeftDrawerState extends State<LeftDrawer> {
+class _PresetDrawerState extends State<PresetDrawer> {
   // controllers
   late final SheetController _sc;
   late final SliderHeaderController _hc;

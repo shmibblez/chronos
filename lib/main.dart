@@ -2,8 +2,8 @@ import 'package:chronos/cubits/chronos.dart';
 import 'package:chronos/cubits/hephaestus.dart';
 import 'package:chronos/cubits/hermes.dart';
 import 'package:chronos/cubits/mnemosyne.dart';
-import 'package:chronos/left_drawer.dart';
-import 'package:chronos/right_drawer.dart';
+import 'package:chronos/preset_drawer.dart';
+import 'package:chronos/settings_drawer.dart';
 import 'package:chronos/zeus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,7 +17,7 @@ void main() {
 /// Some potential improvements, priority 1, 2, or 3
 /// - #2 (1) show beat strength editor (from 1-3) when long-press screen. Also store this in preset as array of numbers (0 for off, 3 for max strength)
 /// - #4 (2) save last settings (last preset, tempo, enabled indicators, beat strength selections), careful with tempo since set very quickly
-/// - #5 (2) add tap to tempo option
+/// - #5 (2) add tap to tempo option (not necessary), or better yet show note volume/pitch editor
 /// - #6 (3) consider using ToggleButtons instead of row
 /// - #7 (2) load futures simultaneously with Future.wait instead of waiting one after another
 /// - #! (1) when blink is off, [Zeus] has some adapted thunderbolts which means only borders of blocks blink, not whole block
@@ -161,8 +161,8 @@ class _HomeState extends State<Home> {
     });
     return Scaffold(
       key: _scaffoldKey,
-      drawer: const LeftDrawer(),
-      endDrawer: const RightDrawer(),
+      drawer: const SettingsDrawer(),
+      endDrawer: const PresetDrawer(),
       onDrawerChanged: (open) {
         if (!open) {
           BlocProvider.of<Chronos>(context).start();
@@ -177,7 +177,6 @@ class _HomeState extends State<Home> {
           BlocProvider.of<Chronos>(context).stop();
         }
       },
-      resizeToAvoidBottomInset: true,
       body: Column(
         children: [
           /// blink indicator with [GestureDetector] as parent for playback options:
