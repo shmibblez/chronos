@@ -26,6 +26,7 @@ void main() {
 /// - #9 (3) when item unfocused, whole preset should be saved, not just notes
 /// - #10 (3) show confirmation screen when deleting preset
 /// - #12 (1) add way to export/import preset
+/// - #NaN (1) fix local preset list when adding new presets, also keep in sync better with db
 /// ChromosComstamts, some app constants
 class ChronosConstants {
   static const int maxNameLength = 100;
