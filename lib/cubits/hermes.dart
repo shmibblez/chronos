@@ -387,7 +387,7 @@ class _PresetListState extends State<PresetList> {
   void _presetSelected(BuildContext context, int i) async {
     // Hermes tells Mnemosyne and she updates list
     // must complete before setting state
-    log("index $i selected");
+    log("preset at index $i selected");
     await BlocProvider.of<Hermes>(context).selectPreset(
       _presets[i],
       DateTime.now().millisecondsSinceEpoch,

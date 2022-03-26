@@ -34,7 +34,7 @@ dependencies:
   soundpool: ^2.2.0
   tekartik_app_flutter_sembast:
     git:
-      url: git://github.com/tekartik/app_flutter_utils.dart
+      url: https://github.com/tekartik/app_flutter_utils.dart
       ref: null_safety
       path: app_sembast
       version: ">=0.1.0"

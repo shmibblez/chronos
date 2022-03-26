@@ -28,6 +28,11 @@ void main() {
 /// - #12 (1) add way to export/import preset
 /// - #NaN (1) fix local preset list when adding new presets, also keep in sync better with db
 /// ChromosComstamts, some app constants
+///
+/// FIXME: colors looking a bit dark, maybe set brightness to Brightness.light and
+/// set other colors manually (sliding sheet background etc)
+/// FIXME: debug when adding/removing presets cached and db presets are not in sync
+/// logging ready for to debugging this
 class ChronosConstants {
   static const int maxNameLength = 100;
   static const int minNameLength = 0;
@@ -96,7 +101,46 @@ class Root extends StatelessWidget {
   const Root({Key? key}) : super(key: key);
   @override
   Widget build(BuildContext context) => MaterialApp(
-        color: Colors.black,
+        theme: ThemeData(
+          colorScheme: const ColorScheme.dark(
+            primary: Colors.black,
+            secondary: Colors.red,
+            inversePrimary: Colors.white,
+          ),
+          inputDecorationTheme: const InputDecorationTheme(
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(
+                width: 2,
+                color: Colors.red,
+              ),
+            ),
+          ),
+          // buttonTheme: const ButtonThemeData(
+          //   buttonColor: Colors.red,
+          //   highlightColor: Colors.red,
+          //   textTheme: ButtonTextTheme.accent,
+          //   splashColor: Colors.transparent,
+          //   focusColor: Colors.redAccent,
+          //   hoverColor: Colors.redAccent,
+          //   disabledColor: Colors.grey,
+          // ),
+          // primaryTextTheme: ,
+          elevatedButtonTheme: ElevatedButtonThemeData(
+              style: TextButton.styleFrom(
+            backgroundColor: Colors.red,
+            textStyle: const TextStyle(color: Colors.white),
+          )),
+          toggleableActiveColor: Colors.red,
+          // Define the default font family.
+          fontFamily: 'Arial',
+          // Define the default `TextTheme`. Use this to specify the default
+          // text styling for headlines, titles, bodies of text, and more.
+          textTheme: const TextTheme(
+            headline1: TextStyle(fontSize: 72.0, fontWeight: FontWeight.bold),
+            headline6: TextStyle(fontSize: 36.0, fontStyle: FontStyle.italic),
+            bodyText2: TextStyle(fontSize: 14.0, fontFamily: 'Hind'),
+          ),
+        ),
         home: SafeArea(
           child: FutureBuilder<InitialData>(
             future: _initialSetup(),

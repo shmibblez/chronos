@@ -4,6 +4,7 @@ import 'dart:developer';
 import 'package:chronos/cubits/hephaestus.dart';
 import 'package:chronos/cubits/hermes.dart';
 import 'package:chronos/main.dart';
+import 'package:chronos/preset_drawer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -120,7 +121,7 @@ class Mnemosyne {
     // if not there, insert
     if (!lastPreset.isDefault &&
         (_presets!.isEmpty || _presets!.first.key != lastPreset.key)) {
-      log("Mnemosyne.lastPreset: preset added to _presets list, key: ${lastPreset.key}");
+      log("last preset added to _presets, key: ${lastPreset.key} -- [Mnemosyne.lastPreset]");
       _presets!.insert(0, lastPreset);
     }
     return lastPreset;
@@ -139,8 +140,12 @@ class Mnemosyne {
     String key = await _presetStore!.add(_db!, json);
     // add new preset to cached list and return
     Preset newPreset = Preset.fromJSON(key, json);
-    log("Mnemosyne.newPreset: preset added to list, key: ${newPreset.key}");
+    log("new preset added to _presets, key: ${newPreset.key} -- [Mnemosyne.newPreset]");
     _presets!.insert(0, newPreset);
+    log("cached presets:");
+    printPresetKeys(presets);
+    log("presets in db:");
+    printPresetKeys(await getAllPresets());
     return newPreset;
   }
 
@@ -160,6 +165,17 @@ class Mnemosyne {
       (e) => Preset.fromJSON(e.key, e.value),
     );
     _presets!.addAll(presets.toList());
+  }
+
+  Future<List<Preset>> getAllPresets() async {
+    var finder = Finder(
+      sortOrders: [SortOrder("millis", false)],
+      filter: Filter.notEquals(Field.key, "default"),
+    );
+    var presets = (await _presetStore!.find(_db!, finder: finder)).map<Preset>(
+      (e) => Preset.fromJSON(e.key, e.value),
+    );
+    return presets.toList();
   }
 
   /// send update to db with values given
@@ -189,7 +205,7 @@ class Mnemosyne {
       // if preset not default, find index and then ...
       int i = _presets!.indexWhere((element) => element.key == old.key);
       if (i >= 0 && i < _presets!.length) {
-        log("Mnemosyne.updatePreset: moved preset to first in list, key: ${updated.key}");
+        log("updated & moved preset to first in _presets, key: ${updated.key} -- [Mnemosyne.updatePreset]");
         // ... move to first in list
         _presets!.removeAt(i);
         _presets!.insert(0, updated);
@@ -197,6 +213,10 @@ class Mnemosyne {
     }
     // update db
     await _presetStore!.record(old.key).update(_db!, Preset.toJSON(updated));
+    log("cached presets:");
+    printPresetKeys(presets);
+    log("presets in db:");
+    printPresetKeys(await getAllPresets());
   }
 
   /// updates bpm after a while, not immediately
@@ -231,7 +251,11 @@ class Mnemosyne {
     int i = _presets!.indexWhere((element) => element.key == p.key);
     // remove from list
     if (i >= 0) _presets!.removeAt(i);
-    log("deleting preset at indx $i");
+    log("deleting preset at indx $i -- [deletePreset]");
+    log("cached presets:");
+    printPresetKeys(presets);
+    log("presets in db:");
+    printPresetKeys(await getAllPresets());
     // update db
     await _presetStore!.record(p.key).delete(_db!);
   }

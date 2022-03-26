@@ -398,7 +398,7 @@ packages:
       path: app_sembast
       ref: null_safety
       resolved-ref: d8184dcac469803aa60d63eac202f496a8e6ca15
-      url: "git://github.com/tekartik/app_flutter_utils.dart"
+      url: "https://github.com/tekartik/app_flutter_utils.dart"
     source: git
     version: "0.5.1"
   tekartik_app_flutter_sqflite:

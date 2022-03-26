@@ -10,6 +10,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sliding_sheet/sliding_sheet.dart';
 import 'dart:math' show min;
 
+printPresetKeys(List<Preset> presets) {
+  log("-- keys:");
+  for (Preset p in presets) {
+    log("   " + p.key + (p.isDefault ? " (default)" : ""));
+  }
+  log("-------");
+}
+
 /// The [PresetDrawer] is [Hermes]'s domain, and is where metronome presets live
 /// presets store the following
 /// - preset name
@@ -77,8 +85,8 @@ class _PresetDrawerState extends State<PresetDrawer> {
     _beatsPerBarFocusNode.addListener(() {
       // save beats per bar if focus removed
       if (!_beatsPerBarFocusNode.hasFocus) {
-        log("beats per bar focus removed");
         _saveBeatsPerBar(_beatsPerBarController.text);
+        log("saved beats per bar");
       }
     });
     _barNoteFocusNode.addListener(() {
@@ -650,8 +658,8 @@ class _SliderHeaderState extends State<SliderHeader> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              minimumSize: Size.zero, // <-- Add this
-              padding: const EdgeInsets.fromLTRB(2, 8, 8, 8), // <-- and this
+              minimumSize: Size.zero,
+              padding: const EdgeInsets.fromLTRB(2, 8, 8, 8),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
