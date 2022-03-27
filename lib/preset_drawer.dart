@@ -161,6 +161,7 @@ class _PresetDrawerState extends State<PresetDrawer> {
           child: Scaffold(
             backgroundColor: Colors.transparent,
             body: SlidingSheet(
+              color: settings.color1d.withAlpha(255),
               controller: _sc,
               minHeight: MediaQuery.of(context).size.height,
               duration: const Duration(milliseconds: 300),
@@ -668,9 +669,12 @@ class _SliderHeaderState extends State<SliderHeader> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: const [
-                Icon(Icons.add),
+                Icon(Icons.add, color: Colors.white),
                 SizedBox(width: 8),
-                Text("new preset"),
+                Text(
+                  "new preset",
+                  style: TextStyle(color: Colors.white),
+                ),
               ],
             ),
             onPressed: widget.newPreset,
@@ -779,7 +783,10 @@ class _SaveNotesButtonState extends State<SaveNotesButton> {
         ? const SizedBox(width: 0, height: 0)
         : ElevatedButton(
             onPressed: _enabled ? widget.onPressed : null,
-            child: const Text("save notes"),
+            child: const Text(
+              "save notes",
+              style: TextStyle(color: Colors.white),
+            ),
           );
   }
 }

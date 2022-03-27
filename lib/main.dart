@@ -29,10 +29,9 @@ void main() {
 /// - #NaN (1) fix local preset list when adding new presets, also keep in sync better with db
 /// ChromosComstamts, some app constants
 ///
-/// FIXME: colors looking a bit dark, maybe set brightness to Brightness.light and
-/// set other colors manually (sliding sheet background etc)
-/// FIXME: debug when adding/removing presets cached and db presets are not in sync
-/// logging ready for to debugging this
+/// FIXME: on initial load, preset loaded doesnt reflect actual
+/// default preset and only updates when drawer opened for
+/// first time
 class ChronosConstants {
   static const int maxNameLength = 100;
   static const int minNameLength = 0;
@@ -111,21 +110,14 @@ class Root extends StatelessWidget {
           inputDecorationTheme: const InputDecorationTheme(
             focusedBorder: UnderlineInputBorder(
               borderSide: BorderSide(
-                width: 2,
+                width: 3,
                 color: Colors.red,
               ),
             ),
           ),
-          // buttonTheme: const ButtonThemeData(
-          //   buttonColor: Colors.red,
-          //   highlightColor: Colors.red,
-          //   textTheme: ButtonTextTheme.accent,
-          //   splashColor: Colors.transparent,
-          //   focusColor: Colors.redAccent,
-          //   hoverColor: Colors.redAccent,
-          //   disabledColor: Colors.grey,
-          // ),
-          // primaryTextTheme: ,
+          textSelectionTheme: const TextSelectionThemeData(
+            cursorColor: Colors.white,
+          ),
           elevatedButtonTheme: ElevatedButtonThemeData(
               style: TextButton.styleFrom(
             backgroundColor: Colors.red,
@@ -141,6 +133,15 @@ class Root extends StatelessWidget {
             headline6: TextStyle(fontSize: 36.0, fontStyle: FontStyle.italic),
             bodyText2: TextStyle(fontSize: 14.0, fontFamily: 'Hind'),
           ),
+          // buttonTheme: const ButtonThemeData(
+          //   buttonColor: Colors.red,
+          //   highlightColor: Colors.red,
+          //   textTheme: ButtonTextTheme.accent,
+          //   splashColor: Colors.transparent,
+          //   focusColor: Colors.redAccent,
+          //   hoverColor: Colors.redAccent,
+          //   disabledColor: Colors.grey,
+          // ),
         ),
         home: SafeArea(
           child: FutureBuilder<InitialData>(
@@ -226,6 +227,7 @@ class _HomeState extends State<Home> {
         }
       },
       body: ColoredBox(
+        // for setting color behind bottom bar
         color: Colors.black,
         child: Column(
           children: [
@@ -285,6 +287,7 @@ class _HomeState extends State<Home> {
                     children: [
                       /// bpm modifier and display
                       BlocBuilder<Hermes, Preset>(
+                          // rebuild when bpm changes
                           buildWhen: (prev, curr) => prev.bpm != curr.bpm,
                           builder: (context, preset) {
                             if (_oldPreset?.key != preset.key ||
@@ -303,6 +306,9 @@ class _HomeState extends State<Home> {
                                       textAlign: TextAlign.center,
                                       controller: _bpmController,
                                       keyboardType: TextInputType.number,
+                                      decoration: const InputDecoration(
+                                        contentPadding: EdgeInsets.zero,
+                                      ),
                                       inputFormatters: [
                                         FilteringTextInputFormatter.digitsOnly
                                       ],
