@@ -42,8 +42,8 @@ class Toolbox {
   Color get color1d => Color.lerp(Colors.black, color1, 0.9)!;
   // color2 but darker
   Color get color2d => Color.lerp(Colors.black, color2, 0.6)!;
-  // color1 but lighter
-  Color get color1l => Color.lerp(color1, Colors.white, 0.1)!;
+  // color1 but lighter, 222 is 87% of 255
+  Color get color1l => Color.lerp(color1, Colors.white, 0.05)!.withAlpha(222);
   // color2 but lighter
   Color get color2l => Color.lerp(color2, Colors.white, 0.1)!;
   final bool blinkEnabled;

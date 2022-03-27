@@ -44,8 +44,8 @@ class ChronosConstants {
   static const int minBeatsPerBar = 2;
   static const int deltaBPM = maxBPM - minBPM;
   static const int defaultBPM = 75; // resting heart bpm is about 70-80
-  static const defaultColor1 = Colors.black87;
-  static const defaultColor2 = Colors.white70;
+  static const defaultColor1 = Color.fromARGB(255, 25, 25, 25);
+  static const defaultColor2 = Colors.white;
   static final defPrefs = {
     "color1": defaultColor1.value,
     "color2": defaultColor2.value,
@@ -102,10 +102,11 @@ class Root extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
         theme: ThemeData(
+          scaffoldBackgroundColor: Colors.black45,
           colorScheme: const ColorScheme.dark(
             primary: Colors.black,
             secondary: Colors.red,
-            inversePrimary: Colors.white,
+            // inversePrimary: Colors.white,
           ),
           inputDecorationTheme: const InputDecorationTheme(
             focusedBorder: UnderlineInputBorder(
@@ -224,123 +225,126 @@ class _HomeState extends State<Home> {
           BlocProvider.of<Chronos>(context).stop();
         }
       },
-      body: Column(
-        children: [
-          /// blink indicator with [GestureDetector] as parent for playback options:
-          /// - play/pause -> tap
-          /// - change bpm -> slide up or down
-          /// - show options drawers -> slide left or right
-          Expanded(
-            child: Stack(
-              children: [
-                /// blink indicator
-                const Zeus(),
+      body: ColoredBox(
+        color: Colors.black,
+        child: Column(
+          children: [
+            /// blink indicator with [GestureDetector] as parent for playback options:
+            /// - play/pause -> tap
+            /// - change bpm -> slide up or down
+            /// - show options drawers -> slide left or right
+            Expanded(
+              child: Stack(
+                children: [
+                  /// blink indicator
+                  const Zeus(),
 
-                /// for gesture options
-                Center(
-                  child: SizedBox(
-                    width: MediaQuery.of(context).size.width - 70,
-                    child: GestureDetector(
-                      // change tempo based on scroll amount
-                      // positive amount is down (tempo decrease)
-                      // negative amount is up (tempo increase)
-                      onVerticalDragUpdate: (DragUpdateDetails details) {
-                        // change tempo by 1
-                        double delta = details.delta.dy;
-                        int bpmChange = -delta.sign.toInt();
-                        BlocProvider.of<Hermes>(context)
-                            .updateBPMbyThrottled(bpmChange);
-                      },
-                      // on tap toggle metronome click -> play/pause
-                      onTap: () {
-                        BlocProvider.of<Chronos>(context).togglePlaying();
-                      },
-                      onLongPress: () {
-                        // show dialog that allows toggling tempo display options
-                      },
+                  /// for gesture options
+                  Center(
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width - 70,
+                      child: GestureDetector(
+                        // change tempo based on scroll amount
+                        // positive amount is down (tempo decrease)
+                        // negative amount is up (tempo increase)
+                        onVerticalDragUpdate: (DragUpdateDetails details) {
+                          // change tempo by 1
+                          double delta = details.delta.dy;
+                          int bpmChange = -delta.sign.toInt();
+                          BlocProvider.of<Hermes>(context)
+                              .updateBPMbyThrottled(bpmChange);
+                        },
+                        // on tap toggle metronome click -> play/pause
+                        onTap: () {
+                          BlocProvider.of<Chronos>(context).togglePlaying();
+                        },
+                        onLongPress: () {
+                          // show dialog that allows toggling tempo display options
+                        },
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          /// bottom indicator options
-          BlocBuilder<Hephaestus, Toolbox>(
-            // rebuild only if background color has changed
-            buildWhen: (prev, curr) => prev.color1l != curr.color1l,
-            builder: (_, settings) {
-              final Color backgroundColor = settings.color1l;
-              final Color textColor =
-                  settings.visibleTextColor(backgroundColor, settings.color2);
-              final TextStyle textStyle = TextStyle(color: textColor);
-              return Container(
-                height: kBottomNavigationBarHeight,
-                color: backgroundColor,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    /// bpm modifier and display
-                    BlocBuilder<Hermes, Preset>(
-                        buildWhen: (prev, curr) => prev.bpm != curr.bpm,
-                        builder: (context, preset) {
-                          if (_oldPreset?.key != preset.key ||
-                              _oldPreset?.bpm != preset.bpm ||
-                              _bpmController.text.isEmpty) {
-                            _bpmController.text = preset.bpm.toString();
-                          }
-                          return Expanded(
-                              child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              SizedBox(
-                                width: 50,
-                                child: TextField(
-                                    style: textStyle,
-                                    textAlign: TextAlign.center,
-                                    controller: _bpmController,
-                                    keyboardType: TextInputType.number,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly
-                                    ],
-                                    onSubmitted: (str) {
-                                      int newBPM = int.parse(str);
-                                      BlocProvider.of<Hermes>(context)
-                                          .updateBPM(newBPM);
-                                    }),
-                              ),
-                              Text("bpm", style: textStyle),
-                            ],
-                          ));
-                        }),
+            /// bottom indicator options
+            BlocBuilder<Hephaestus, Toolbox>(
+              // rebuild only if background color has changed
+              buildWhen: (prev, curr) => prev.color1l != curr.color1l,
+              builder: (_, settings) {
+                final Color backgroundColor = settings.color1l;
+                final Color textColor =
+                    settings.visibleTextColor(backgroundColor, settings.color2);
+                final TextStyle textStyle = TextStyle(color: textColor);
+                return Container(
+                  height: kBottomNavigationBarHeight,
+                  color: backgroundColor,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      /// bpm modifier and display
+                      BlocBuilder<Hermes, Preset>(
+                          buildWhen: (prev, curr) => prev.bpm != curr.bpm,
+                          builder: (context, preset) {
+                            if (_oldPreset?.key != preset.key ||
+                                _oldPreset?.bpm != preset.bpm ||
+                                _bpmController.text.isEmpty) {
+                              _bpmController.text = preset.bpm.toString();
+                            }
+                            return Expanded(
+                                child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 50,
+                                  child: TextField(
+                                      style: textStyle,
+                                      textAlign: TextAlign.center,
+                                      controller: _bpmController,
+                                      keyboardType: TextInputType.number,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly
+                                      ],
+                                      onSubmitted: (str) {
+                                        int newBPM = int.parse(str);
+                                        BlocProvider.of<Hermes>(context)
+                                            .updateBPM(newBPM);
+                                      }),
+                                ),
+                                Text("bpm", style: textStyle),
+                              ],
+                            ));
+                          }),
 
-                    /// beat indicator selector
-                    const BeatIndicators(),
+                      /// beat indicator selector
+                      const BeatIndicators(),
 
-                    /// #5 placeholder
-                    Expanded(child: Container()),
-                    // #5
-                    // Expanded(
-                    //   child: IconButton(
-                    //     onPressed: () {
-                    //       BlocProvider.of<SettingsCubit>(context)
-                    //           .toggleClickEnabled();
-                    //     },
-                    //     icon: settings.clickEnabled
-                    //         ? Icon(Icons.touch_app, color: lighter)
-                    //         : Icon(Icons.touch_app, color: darker),
-                    //     // color when enabled & not pressed
-                    //     color: settings.color1,
-                    //     // color when pressed
-                    //     highlightColor: settings.color1l,
-                    //   ),
-                    // ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
+                      /// #5 placeholder
+                      Expanded(child: Container()),
+                      // #5
+                      // Expanded(
+                      //   child: IconButton(
+                      //     onPressed: () {
+                      //       BlocProvider.of<SettingsCubit>(context)
+                      //           .toggleClickEnabled();
+                      //     },
+                      //     icon: settings.clickEnabled
+                      //         ? Icon(Icons.touch_app, color: lighter)
+                      //         : Icon(Icons.touch_app, color: darker),
+                      //     // color when enabled & not pressed
+                      //     color: settings.color1,
+                      //     // color when pressed
+                      //     highlightColor: settings.color1l,
+                      //   ),
+                      // ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

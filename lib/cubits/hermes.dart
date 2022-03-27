@@ -148,12 +148,12 @@ class Preset {
     return "$bpm|$beatsPerBar/$barNote";
   }
 
-  static final Map newPresetJSON = {
-    "name": "",
-    "sig": "100|4/4",
-    "millis": DateTime.now().millisecondsSinceEpoch,
-    "notes": "",
-  };
+  static Map newPresetJSON() => {
+        "name": "",
+        "sig": "100|4/4",
+        "millis": DateTime.now().millisecondsSinceEpoch,
+        "notes": "",
+      };
 }
 
 /// [Hermes] transports presets between Mnemosyne and widgets
@@ -252,6 +252,7 @@ class Hermes extends Cubit<Preset> {
   /// if no last preset exists, create and load new one
   Future<Preset> loadLastPreset({bool includDefault = false}) async {
     Preset? p = await Mnemosyne().lastPreset(includeDefault: includDefault);
+    log("last preset: " + p.toString());
     // if no preset exists create new one
     p ??= await Mnemosyne().newPreset();
     emit(p);

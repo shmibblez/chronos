@@ -13,7 +13,11 @@ import 'dart:math' show min;
 printPresetKeys(List<Preset> presets) {
   log("-- keys:");
   for (Preset p in presets) {
-    log("   " + p.key + (p.isDefault ? " (default)" : ""));
+    log("   " +
+        p.key +
+        ", millis: " +
+        p.millis.toString() +
+        (p.isDefault ? " (default)" : ""));
   }
   log("-------");
 }

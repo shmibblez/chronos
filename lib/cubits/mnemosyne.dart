@@ -86,8 +86,10 @@ class Mnemosyne {
     final bool canVibrate = await Vibration.hasVibrator() ?? false;
 
     var t = Toolbox(
-      color1: Color(prefs["color1"] as int),
-      color2: Color(prefs["color2"] as int),
+      color1: Color(ChronosConstants.defPrefs["color1"] as int),
+      color2: Color(ChronosConstants.defPrefs["color2"] as int),
+      // color1: Color(prefs["color1"] as int),
+      // color2: Color(prefs["color2"] as int),
       blinkEnabled: prefs["blinkEnabled"],
       vibrateEnabled: prefs["vibrateEnabled"],
       clickEnabled: prefs["clickEnabled"],
@@ -135,13 +137,13 @@ class Mnemosyne {
   /// creates new preset with random key
   Future<Preset> newPreset() async {
     // generate new preset json
-    var json = Preset.newPresetJSON;
+    var json = Preset.newPresetJSON();
     // add new preset to db
     String key = await _presetStore!.add(_db!, json);
     // add new preset to cached list and return
     Preset newPreset = Preset.fromJSON(key, json);
-    log("new preset added to _presets, key: ${newPreset.key} -- [Mnemosyne.newPreset]");
     _presets!.insert(0, newPreset);
+    log("new preset added to _presets, key: ${newPreset.key} -- [Mnemosyne.newPreset]");
     log("cached presets:");
     printPresetKeys(presets);
     log("presets in db:");
@@ -201,14 +203,15 @@ class Mnemosyne {
     if (old.isDefault) {
       // if preset default, ensure values are right
       updated = Preset.from(updated, name: "default", key: "default");
+      log("updated default preset -- [Mnemosyne.updatePreset]");
     } else {
       // if preset not default, find index and then ...
       int i = _presets!.indexWhere((element) => element.key == old.key);
       if (i >= 0 && i < _presets!.length) {
-        log("updated & moved preset to first in _presets, key: ${updated.key} -- [Mnemosyne.updatePreset]");
         // ... move to first in list
         _presets!.removeAt(i);
         _presets!.insert(0, updated);
+        log("updated & moved preset to first in _presets, key: ${updated.key} -- [Mnemosyne.updatePreset]");
       }
     }
     // update db
@@ -219,7 +222,7 @@ class Mnemosyne {
     printPresetKeys(await getAllPresets());
   }
 
-  /// updates bpm after a while, not immediately
+  /// updates bpm at intervals (after a while), not immediately
   /// [preset] has not been updated yet
   void updateBPMThrottled(int bpm, Preset preset) {
     // add preset with updated bpm to pending updates
@@ -250,13 +253,13 @@ class Mnemosyne {
     // find indx of preset to remove
     int i = _presets!.indexWhere((element) => element.key == p.key);
     // remove from list
-    if (i >= 0) _presets!.removeAt(i);
     log("deleting preset at indx $i -- [deletePreset]");
+    if (i >= 0) _presets!.removeAt(i);
+    // update db
+    await _presetStore!.record(p.key).delete(_db!);
     log("cached presets:");
     printPresetKeys(presets);
     log("presets in db:");
     printPresetKeys(await getAllPresets());
-    // update db
-    await _presetStore!.record(p.key).delete(_db!);
   }
 }
