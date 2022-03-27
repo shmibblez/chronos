@@ -63,12 +63,12 @@ class Mnemosyne {
 
     soundpool = Soundpool.fromOptions();
     // begin loading
-    var t = lastToolbox();
-    var l = lastPreset(includeDefault: true);
+    var l = await lastPreset(includeDefault: true);
+    var t = lastToolbox(presetsEnabled: !l!.isDefault);
 
     var d = InitialData(
       toolbox: await t,
-      preset: (await l)!, // can't be null since default is included
+      preset: l, // can't be null since default is included
       soundpool: soundpool!,
     );
 
@@ -76,7 +76,7 @@ class Mnemosyne {
   }
 
   /// loads last toolbox
-  Future<Toolbox> lastToolbox() async {
+  Future<Toolbox> lastToolbox({required bool presetsEnabled}) async {
     var prefs = await _prefStore!.record("prefs").get(_db!);
     // get sound file path
     final ByteData bytes = await rootBundle.load(prefs["sound"]); // #7
@@ -95,7 +95,7 @@ class Mnemosyne {
       clickEnabled: prefs["clickEnabled"],
       vibrateAvailable: canVibrate && !kIsWeb,
       soundId: soundId,
-      presetsEnabled: prefs["presetsEnabled"],
+      presetsEnabled: presetsEnabled, // prefs["presetsEnabled"],
     );
 
     return t;

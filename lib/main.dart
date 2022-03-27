@@ -32,6 +32,7 @@ void main() {
 /// FIXME: on initial load, preset loaded doesnt reflect actual
 /// default preset and only updates when drawer opened for
 /// first time
+/// FIXME: figure out how to setup android testing
 class ChronosConstants {
   static const int maxNameLength = 100;
   static const int minNameLength = 0;
