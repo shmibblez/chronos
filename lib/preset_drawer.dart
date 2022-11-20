@@ -606,6 +606,7 @@ class _SliderHeaderState extends State<SliderHeader> {
 
   @override
   void initState() {
+    // set slider callbacks
     super.initState();
     state = widget.state;
     widget.controller._notifyExpanded = () {
@@ -622,6 +623,7 @@ class _SliderHeaderState extends State<SliderHeader> {
 
   @override
   void didUpdateWidget(SliderHeader oldWidget) {
+    // update slider callbacks
     super.didUpdateWidget(oldWidget);
     widget.controller._notifyExpanded = () {
       setState(() {
