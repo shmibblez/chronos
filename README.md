@@ -18,4 +18,4 @@ Hephaestus is a master of craft, his true power in this scope is with the power 
 
 ### Hermes
 
-Hermes, messenger of the gods, is aware of the currently loaded presets provided by Mnemosyne, and so he fullfills his task of handing them over to ui widgets which display data to the user. He has also stolen Zeus' lighting bolt, which is then used to light up the corresponding beat measure, or to blink the screen in case the user has enabled that option.
+Hermes, messenger of the gods, is aware of the currently loaded presets provided by Mnemosyne, and so he fullfills his task of handing them over to ui widgets which display data to the user. He has also stolen Zeus' lighting bolt, which is used to light up the corresponding beat measure, or to blink the screen in case the user has enabled that option.
