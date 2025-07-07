@@ -1,6 +1,6 @@
 # Chronos
 
-Named after the god of time, this the repo of a flutter metronome app! Chronos places heavy emphasis on access to components by gestures, and metronome presets can be persisted locally. Sometimes I'm learning a couple songs on guitar at the same time and need to switch between bpm and beats per measure quickly, and it's tough to memorize all bpms and change the metronome, which is why this app was created.
+Named after the god of time, this is the repo of a flutter metronome app! Chronos places heavy emphasis on access to components by gestures, and metronome presets can be persisted locally. Sometimes I'm learning a couple songs on guitar at the same time and need to switch between bpm and beats per measure quickly, and it's tough to memorize all bpms and change the metronome, which is why this app was created.
 
 ## Code Structure
 
