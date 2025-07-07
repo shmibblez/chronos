@@ -4,7 +4,7 @@ Named after the god of time, this is the repo of a flutter metronome app! Chrono
 
 ## Code Structure
 
-This project uses the flutter BLoC pattern for data management, and given the async nature of a metronome, it makes sense. The base cubit emits time-based events to notify listeners when they should update ui components; this base class is called Chronos. Chronos' reputation precedes him, so he is now in charge of emitting time events based on the user's set bpm and beats per measure. He also times sound clicks and device vibration in case those options are enabled.
+This project uses the flutter BLoC pattern for data management, given the async nature of a metronome. The base cubit emits time-based events to notify listeners when they should update ui components; this base class is called Chronos. Chronos' reputation precedes him, so he is now in charge of emitting time events based on the user's set bpm and beats per measure. He also times sound clicks and device vibration in case those options are enabled.
 
 There are also 3 more cubits that do stuff: Hephaestus, Mnemosyne, and Hermes. Their jobs are as follows:
 
