@@ -7,17 +7,12 @@ import 'package:chronos/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sliding_sheet/sliding_sheet.dart';
 import 'dart:math' show min;
 
-printPresetKeys(List<Preset> presets) {
+dynamic printPresetKeys(List<Preset> presets) {
   log("-- keys:");
   for (Preset p in presets) {
-    log("   " +
-        p.key +
-        ", millis: " +
-        p.millis.toString() +
-        (p.isDefault ? " (default)" : ""));
+    log("   ${p.key}, millis: ${p.millis.toString()} ${p.isDefault ? " (default)" : ""}");
   }
   log("-------");
 }
@@ -39,8 +34,10 @@ class PresetDrawer extends StatefulWidget {
 
 class _PresetDrawerState extends State<PresetDrawer> {
   // controllers
-  late final SheetController _sc;
-  late final SliderHeaderController _hc;
+  // todo: add animation controller to show, hide, expand
+  //  also add header
+  //  what to put for vsync?
+  late AnimationController _ac;
   late final TextEditingController _nameController;
   late final TextEditingController _bpmController;
   late final TextEditingController _beatsPerBarController;
@@ -60,8 +57,7 @@ class _PresetDrawerState extends State<PresetDrawer> {
   void initState() {
     super.initState();
     // controllers
-    _sc = SheetController();
-    _hc = SliderHeaderController();
+    // _ac = AnimationController(vsync: this)
     _nameController = TextEditingController();
     _bpmController = TextEditingController();
     _beatsPerBarController = TextEditingController();
@@ -155,37 +151,39 @@ class _PresetDrawerState extends State<PresetDrawer> {
         final screenW = MediaQuery.of(context).size.width;
         final w = min((screenW * (2 / 3)).truncate().toDouble(), 304.0);
         // rebuild when relevant app settings change
+
         return SizedBox(
           height: double.infinity,
           width: w,
           child: Scaffold(
             backgroundColor: Colors.transparent,
-            body: SlidingSheet(
-              color: settings.color1d.withAlpha(255),
-              controller: _sc,
-              minHeight: MediaQuery.of(context).size.height,
-              duration: const Duration(milliseconds: 300),
-              snapSpec: SnapSpec(
-                initialSnap: settings.presetsEnabled ? SnapSpec.headerSnap : 0,
-                snappings: [SnapSpec.headerSnap, 1],
-                positioning: SnapPositioning.relativeToAvailableSpace,
-              ),
-              body: buildPreset(settings),
-              headerBuilder: (_, state) => SliderHeader(
-                state: _HeaderState.peeking,
-                action: _onClickPanelHeader,
-                newPreset: _onClickNewPreset,
-                controller: _hc,
-              ),
-              listener: (state) {
-                if (state.isExpanded) {
-                  _hc.notifyExpanded();
-                } else {
-                  _hc.notifyPeeking();
-                }
-              },
-              customBuilder: (_, controller, __) => PresetList(
-                controller: controller,
+            body: BottomSheet(
+              onClosing: () => {},
+              backgroundColor: settings.color1d.withAlpha(255),
+              // controller: _sc,
+              // minHeight: MediaQuery.of(context).size.height,
+              // duration: const Duration(milliseconds: 300),
+              // snapSpec: SnapSpec(
+              //   initialSnap: settings.presetsEnabled ? SnapSpec.headerSnap : 0,
+              //   snappings: [SnapSpec.headerSnap, 1],
+              //   positioning: SnapPositioning.relativeToAvailableSpace,
+              // ),
+              // body: buildPreset(settings),
+              // headerBuilder: (_, state) => SliderHeader(
+              //   state: _HeaderState.peeking,
+              //   action: _onClickPanelHeader,
+              //   newPreset: _onClickNewPreset,
+              //   controller: _hc,
+              // ),
+              // listener: (state) {
+              //   if (state.isExpanded) {
+              //     _hc.notifyExpanded();
+              //   } else {
+              //     _hc.notifyPeeking();
+              //   }
+              // },
+              builder: (_) => PresetList(
+                // controller: controller,
                 action: _peek,
                 delete: (preset) => _onPresetDeleted(enabledAfter: true),
               ),
@@ -241,27 +239,31 @@ class _PresetDrawerState extends State<PresetDrawer> {
   /// collapse and only show header
   /// called when preset selected from preset list
   Future<void> _peek() async {
-    await _sc.snapToExtent(SnapSpec.headerSnap);
+    // todo
+    // await _sc.snapToExtent(SnapSpec.headerSnap);
   }
 
   /// completely expand sheet
   /// called when presets enabled, or when user wants to change current preset
   Future<void> _expand() async {
-    await _sc.expand();
+    // todo
+    // await _sc.expand();
   }
 
   /// completely hide sheet
   /// called when user cancels preset selection, or presets disabled
   Future<void> _hide() async {
-    await _sc.hide();
+    // todo
+    // await _sc.hide();
   }
 
   void _onClickPanelHeader() {
-    if (_sc.state!.isCollapsed) {
-      _expand();
-    } else {
-      _peek();
-    }
+    // todo
+    // if (_sc.state!.isCollapsed) {
+    //   _expand();
+    // } else {
+    //   _peek();
+    // }
   }
 
   void _onClickNewPreset() {
@@ -291,7 +293,7 @@ class _PresetDrawerState extends State<PresetDrawer> {
     final Color dividerColor = settings.color2d;
     final TextStyle textStyle = TextStyle(color: textColor, fontSize: 14);
     // update old preset key
-    WidgetsBinding.instance?.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       _oldPresetKey = BlocProvider.of<Hermes>(context).state.key;
     });
     return Drawer(
@@ -668,9 +670,10 @@ class _SliderHeaderState extends State<SliderHeader> {
               minimumSize: Size.zero,
               padding: const EdgeInsets.fromLTRB(2, 8, 8, 8),
             ),
-            child: Row(
+            onPressed: widget.newPreset,
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 Icon(Icons.add, color: Colors.white),
                 SizedBox(width: 8),
                 Text(
@@ -679,7 +682,6 @@ class _SliderHeaderState extends State<SliderHeader> {
                 ),
               ],
             ),
-            onPressed: widget.newPreset,
           ),
           const SizedBox(width: 16),
         ],

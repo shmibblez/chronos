@@ -6,10 +6,9 @@ import 'package:chronos/cubits/hermes.dart';
 import 'package:chronos/main.dart';
 import 'package:chronos/preset_drawer.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:sembast/sembast_io.dart';
 import 'package:soundpool/soundpool.dart';
-import 'package:tekartik_app_flutter_sembast/sembast.dart';
 import 'package:vibration/vibration.dart';
 
 class Mnemosyne {
@@ -40,7 +39,7 @@ class Mnemosyne {
     _presets = [];
     _pendingBPMUpdates = {};
 
-    DatabaseFactory dbFactory = getDatabaseFactory();
+    DatabaseFactory dbFactory = databaseFactoryIo;
     _db = await dbFactory.openDatabase(
       "chronos.db",
       version: 1,

@@ -53,7 +53,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                     Divider(color: dividerColor),
 
                     /// play/pause
-                    Row(children: const [
+                    const Row(children: [
                       Expanded(
                         child: Text("play/pause", textAlign: TextAlign.start),
                       ),
@@ -66,8 +66,8 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                     Divider(color: dividerColor),
 
                     /// enabled indicators
-                    Row(
-                      children: const [
+                    const Row(
+                      children: [
                         Expanded(child: Text("indicators")),
                         HelpButton(
                           msg:

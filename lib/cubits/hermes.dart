@@ -252,7 +252,7 @@ class Hermes extends Cubit<Preset> {
   /// if no last preset exists, create and load new one
   Future<Preset> loadLastPreset({bool includDefault = false}) async {
     Preset? p = await Mnemosyne().lastPreset(includeDefault: includDefault);
-    log("last preset: " + p.toString());
+    log("last preset: $p");
     // if no preset exists create new one
     p ??= await Mnemosyne().newPreset();
     emit(p);
@@ -272,11 +272,11 @@ class PresetList extends StatefulWidget {
     Key? key,
     required this.action,
     required this.delete,
-    this.controller,
+    // this.controller,
   }) : super(key: key);
   final void Function() action;
   final void Function(Preset) delete;
-  final ScrollController? controller;
+  // final ScrollController? controller;
 
   @override
   State<StatefulWidget> createState() => _PresetListState();
@@ -327,28 +327,28 @@ class _PresetListState extends State<PresetList> {
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         primary: false,
-        controller: widget.controller,
+        // controller: widget.controller,
         itemCount: _presets.length + 1,
         itemBuilder: (_, i) {
           if (i >= _presets.length) {
             if (_noMore) {
               if (_presets.isEmpty) {
                 return Container(
+                  padding: const EdgeInsets.all(16),
                   child: const Text("no presets found",
                       textAlign: TextAlign.center),
-                  padding: const EdgeInsets.all(16),
                 );
               }
               return Container(
-                child: const Text("end of list", textAlign: TextAlign.center),
                 padding: const EdgeInsets.all(16),
+                child: const Text("end of list", textAlign: TextAlign.center),
               );
             }
             // load some presets if at end of list
             _loadPresets(context);
             return Container(
-              child: const Text("loading...", textAlign: TextAlign.center),
               padding: const EdgeInsets.all(16),
+              child: const Text("loading...", textAlign: TextAlign.center),
             );
           }
           String title = _presets[i].name;
