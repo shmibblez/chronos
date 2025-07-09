@@ -19,3 +19,7 @@ Hephaestus is a master of craft, his true power in this scope is with the power 
 ### Hermes
 
 Hermes, messenger of the gods, is aware of the currently loaded presets provided by Mnemosyne, and so he fullfills his task of handing them over to ui widgets which display data to the user. He has also stolen Zeus' lighting bolt, which is used to light up the corresponding beat measure, or to blink the screen in case the user has enabled that option.
+
+# Massiv Bugs
+
+Man this app is old, it's been 3 years since I wrote this and lemme just say it's not that bad actually. There are some things that are a bit sloppy but overall it works. I've replaced 2 dead dependencies (rip soundpool and sliding_sheet, they forever live on in our hearts and their legacy is carried by audioplayers and modal_bottom_sheet), and made some modifications related to audio playing, there need to be multiple instances of AudioPlayer for sound to be played quickly enough. This may be considered a hack but that is currently the founding philosophy of this project (/s).
