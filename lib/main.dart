@@ -1,3 +1,6 @@
+import 'dart:developer';
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:chronos/cubits/chronos.dart';
 import 'package:chronos/cubits/hephaestus.dart';
 import 'package:chronos/cubits/hermes.dart';
@@ -8,7 +11,6 @@ import 'package:chronos/zeus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:soundpool/soundpool.dart';
 
 void main() {
   runApp(const Root());
@@ -85,11 +87,11 @@ class InitialData {
   InitialData({
     required this.toolbox,
     required this.preset,
-    required this.soundpool,
+    required this.audioPlayers,
   });
   final Toolbox toolbox;
   final Preset preset;
-  final Soundpool soundpool;
+  final List<AudioPlayer> audioPlayers;
 }
 
 class Root extends StatelessWidget {
@@ -129,33 +131,58 @@ class Root extends StatelessWidget {
           // Define the default `TextTheme`. Use this to specify the default
           // text styling for headlines, titles, bodies of text, and more.
           textTheme: const TextTheme(
-            displayLarge: TextStyle(fontSize: 72.0, fontWeight: FontWeight.bold),
+            displayLarge:
+                TextStyle(fontSize: 72.0, fontWeight: FontWeight.bold),
             titleLarge: TextStyle(fontSize: 36.0, fontStyle: FontStyle.italic),
             bodyMedium: TextStyle(fontSize: 14.0, fontFamily: 'Hind'),
-          ), checkboxTheme: CheckboxThemeData(
- fillColor: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
- if (states.contains(WidgetState.disabled)) { return null; }
- if (states.contains(WidgetState.selected)) { return Colors.red; }
- return null;
- }),
- ), radioTheme: RadioThemeData(
- fillColor: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
- if (states.contains(WidgetState.disabled)) { return null; }
- if (states.contains(WidgetState.selected)) { return Colors.red; }
- return null;
- }),
- ), switchTheme: SwitchThemeData(
- thumbColor: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
- if (states.contains(WidgetState.disabled)) { return null; }
- if (states.contains(WidgetState.selected)) { return Colors.red; }
- return null;
- }),
- trackColor: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
- if (states.contains(WidgetState.disabled)) { return null; }
- if (states.contains(WidgetState.selected)) { return Colors.red; }
- return null;
- }),
- ),
+          ),
+          checkboxTheme: CheckboxThemeData(
+            fillColor: WidgetStateProperty.resolveWith<Color?>(
+                (Set<WidgetState> states) {
+              if (states.contains(WidgetState.disabled)) {
+                return null;
+              }
+              if (states.contains(WidgetState.selected)) {
+                return Colors.red;
+              }
+              return null;
+            }),
+          ),
+          radioTheme: RadioThemeData(
+            fillColor: WidgetStateProperty.resolveWith<Color?>(
+                (Set<WidgetState> states) {
+              if (states.contains(WidgetState.disabled)) {
+                return null;
+              }
+              if (states.contains(WidgetState.selected)) {
+                return Colors.red;
+              }
+              return null;
+            }),
+          ),
+          switchTheme: SwitchThemeData(
+            thumbColor: WidgetStateProperty.resolveWith<Color?>(
+                (Set<WidgetState> states) {
+              if (states.contains(WidgetState.disabled)) {
+                return null;
+              }
+              if (states.contains(WidgetState.selected)) {
+                return Colors.red;
+              }
+              return null;
+            }),
+            trackColor: WidgetStateProperty.resolveWith<Color?>(
+              (Set<WidgetState> states) {
+                if (states.contains(WidgetState.disabled)) {
+                  return null;
+                }
+                if (states.contains(WidgetState.selected)) {
+                  return Colors.red;
+                }
+                return null;
+              },
+            ),
+          ),
           // buttonTheme: const ButtonThemeData(
           //   buttonColor: Colors.red,
           //   highlightColor: Colors.red,
@@ -171,30 +198,41 @@ class Root extends StatelessWidget {
             future: _initialSetup(),
             builder: (context, snap) {
               // if not ready yet, show loading screen
-              if (snap.connectionState != ConnectionState.done) {
-                return const LoadingPage();
+              log("Root.build, snap.connectionState: ${snap.connectionState}");
+
+              if (snap.hasError) {
+                log("Root.build, error: ${snap.error}");
               }
+
               // if future complete, use snap data
-              return MultiBlocProvider(
-                providers: [
-                  BlocProvider(
-                    lazy: false,
-                    create: (_) => Hephaestus(snap.data!.toolbox),
-                  ),
-                  BlocProvider(
-                    lazy: false,
-                    create: (_) => Hermes(snap.data!.preset),
-                  ),
-                  BlocProvider(
-                    lazy: false,
-                    create: (BuildContext context1) => Chronos(
-                      context: context1,
-                      soundpool: snap.data!.soundpool,
+              if (snap.hasData) {
+                return MultiBlocProvider(
+                  providers: [
+                    BlocProvider(
+                      lazy: false,
+                      create: (_) {
+                        log("Creating Hephaestus, snap.data.toolbox: ${snap.data?.toolbox}");
+                        return Hephaestus(snap.data!.toolbox);
+                      },
                     ),
-                  ),
-                ],
-                child: Home(key: super.key),
-              );
+                    BlocProvider(
+                      lazy: false,
+                      create: (_) => Hermes(snap.data!.preset),
+                    ),
+                    BlocProvider(
+                      lazy: false,
+                      create: (BuildContext context1) => Chronos(
+                        context: context1,
+                        audioPlayers: snap.data!.audioPlayers,
+                      ),
+                    ),
+                  ],
+                  child: Home(key: super.key),
+                );
+              }
+
+              // if loading or error show loading page
+              return const LoadingPage();
             },
           ),
         ),
@@ -278,6 +316,17 @@ class _HomeState extends State<Home> {
                           int bpmChange = -delta.sign.toInt();
                           BlocProvider.of<Hermes>(context)
                               .updateBPMbyThrottled(bpmChange);
+                        },
+                        onHorizontalDragEnd: (details) {
+                          if (details.primaryVelocity != null) {
+                            if (details.primaryVelocity! < 0) {
+                              // if swipe left, open end drawer
+                              _scaffoldKey.currentState?.openEndDrawer();
+                            } else if (details.primaryVelocity! > 0) {
+                              // if swipe right, open drawer
+                              _scaffoldKey.currentState?.openDrawer();
+                            }
+                          }
                         },
                         // on tap toggle metronome click -> play/pause
                         onTap: () {

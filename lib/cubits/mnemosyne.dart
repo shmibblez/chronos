@@ -1,15 +1,17 @@
 import 'dart:async';
 import 'dart:developer';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:chronos/cubits/hephaestus.dart';
 import 'package:chronos/cubits/hermes.dart';
 import 'package:chronos/main.dart';
 import 'package:chronos/preset_drawer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sembast/sembast_io.dart';
-import 'package:soundpool/soundpool.dart';
 import 'package:vibration/vibration.dart';
+import 'package:path/path.dart' as p;
 
 class Mnemosyne {
   static final Mnemosyne _mnemosyne = Mnemosyne._();
@@ -23,7 +25,7 @@ class Mnemosyne {
   Database? _db;
   StoreRef<String, dynamic>? _prefStore;
   StoreRef<String, dynamic>? _presetStore;
-  Soundpool? soundpool;
+  List<AudioPlayer>? audioPlayers;
   List<Preset>? _presets;
   Map<String, Preset>? _pendingBPMUpdates;
   Future<void>? _updateBPMs;
@@ -40,8 +42,9 @@ class Mnemosyne {
     _pendingBPMUpdates = {};
 
     DatabaseFactory dbFactory = databaseFactoryIo;
+    final appDocDir = await getApplicationDocumentsDirectory();
     _db = await dbFactory.openDatabase(
-      "chronos.db",
+      p.join(appDocDir.path, "chronos.db"),
       version: 1,
       onVersionChanged: (database, oldVer, newVer) async {
         if (oldVer <= 0) {
@@ -60,15 +63,27 @@ class Mnemosyne {
       },
     );
 
-    soundpool = Soundpool.fromOptions();
     // begin loading
     var l = await lastPreset(includeDefault: true);
-    var t = lastToolbox(presetsEnabled: !l!.isDefault);
+
+    // setup audio players
+    audioPlayers = List.empty(growable: true);
+    for (int i = 0; i < l!.beatsPerBar; i++) {
+      audioPlayers!.add(AudioPlayer());
+      await audioPlayers!.last.setReleaseMode(ReleaseMode.stop);
+    }
+    // todo: when support for more or custom sounds is added, load file to audio cache:
+    //  audioPlayer?.audioCache = AudioCache();
+    //  audioPlayer?.audioCache.load(fileName)
+    // // todo: if load fails then use default asset, it probably means file doesn't exist
+
+    // load last toolbox, depends on [audioPlayers]
+    var t = await lastToolbox(presetsEnabled: !l.isDefault);
 
     var d = InitialData(
-      toolbox: await t,
+      toolbox: t,
       preset: l, // can't be null since default is included
-      soundpool: soundpool!,
+      audioPlayers: audioPlayers!,
     );
 
     return d;
@@ -78,11 +93,19 @@ class Mnemosyne {
   Future<Toolbox> lastToolbox({required bool presetsEnabled}) async {
     var prefs = await _prefStore!.record("prefs").get(_db!);
     // get sound file path
-    final ByteData bytes = await rootBundle.load(prefs["sound"]); // #7
+    // todo: fix sembast file structure, also add selected sound path, could be asset or other.
+    //  this will get messy when exporting presets, make sure to have multiple default sounds,
+    //  if sound not default or available use default (means need to check if file exists)
+    //  this could be handled in audio player, in error listener if file not found, use default sound
+    // final ByteData bytes = await rootBundle.load(prefs["sound"]); // #7
     // load asset into soundpool
-    final int soundId = await soundpool!.load(bytes);
+    final List<Source> soundSources = List.empty(growable: true);
+    for (AudioPlayer ap in audioPlayers!) {
+      await ap.audioCache.load("sounds/wood_sound.wav");
+      soundSources.add(AssetSource("sounds/wood_sound.wav"));
+    }
     // check if can vibrate
-    final bool canVibrate = await Vibration.hasVibrator() ?? false;
+    final bool canVibrate = await Vibration.hasVibrator();
 
     var t = Toolbox(
       color1: Color(ChronosConstants.defPrefs["color1"] as int),
@@ -93,7 +116,7 @@ class Mnemosyne {
       vibrateEnabled: prefs["vibrateEnabled"],
       clickEnabled: prefs["clickEnabled"],
       vibrateAvailable: canVibrate && !kIsWeb,
-      soundId: soundId,
+      soundSources: soundSources,
       presetsEnabled: presetsEnabled, // prefs["presetsEnabled"],
     );
 
@@ -102,7 +125,7 @@ class Mnemosyne {
 
   /// loads last preset used
   /// Preset will be null if default not included and none exist yet
-  Future<Preset?> lastPreset({includeDefault = false}) async {
+  Future<Preset?> lastPreset({bool includeDefault = false}) async {
     final finder = Finder(
       sortOrders: [SortOrder("millis", false)],
       // whether to include default preset or not

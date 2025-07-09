@@ -1,9 +1,9 @@
 import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:chronos/cubits/hephaestus.dart';
 import 'package:chronos/cubits/hermes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:soundpool/soundpool.dart';
 import 'package:vibration/vibration.dart';
 
 /// [Chronos] keeps track of time and notifies beat changes based on bpm and
@@ -17,7 +17,7 @@ import 'package:vibration/vibration.dart';
 class Chronos extends Cubit<int> {
   Chronos(
       {required BuildContext context,
-      required this.soundpool,
+      required this.audioPlayers,
       int first = 0,
       initiallyPlaying = true})
       : super(validateFirstBeat(
@@ -28,7 +28,7 @@ class Chronos extends Cubit<int> {
     Toolbox toolbox = BlocProvider.of<Hephaestus>(context).state;
     _clickEnabled = toolbox.clickEnabled;
     _vibrateEnabled = toolbox.vibrateEnabled;
-    _soundId = toolbox.soundId;
+    _soundSources = toolbox.soundSources;
     if (initiallyPlaying) _initTimer(_timerPeriod);
     // listen to Hermes for preset changes
     _hermesSub = BlocProvider.of<Hermes>(context).stream.listen(
@@ -52,8 +52,8 @@ class Chronos extends Cubit<int> {
         if (event.vibrateEnabled != _vibrateEnabled) {
           _vibrateEnabled = event.vibrateEnabled;
         }
-        if (event.soundId != _soundId) {
-          _soundId = event.soundId;
+        if (event.soundSources != _soundSources) {
+          _soundSources = event.soundSources;
         }
       },
     );
@@ -66,7 +66,9 @@ class Chronos extends Cubit<int> {
     // _timer?.clo();
     _hermesSub.cancel();
     _hephasestusSub.cancel();
-    soundpool.release();
+    for (AudioPlayer ap in audioPlayers) {
+      ap.release();
+    }
   }
 
   /// instance variables
@@ -75,10 +77,10 @@ class Chronos extends Cubit<int> {
   late int _limit;
   late Duration _timerPeriod;
   StreamSubscription<void>? _timerSub;
-  late int _soundId;
+  late List<Source> _soundSources;
   late bool _clickEnabled;
   late bool _vibrateEnabled;
-  final Soundpool soundpool;
+  final List<AudioPlayer> audioPlayers;
 
   /// other instance variables
   bool get playing {
@@ -146,13 +148,19 @@ class Chronos extends Cubit<int> {
       beat = state + 1;
     }
     emit(beat);
-    if (_clickEnabled) soundpool.play(_soundId);
+    if (_clickEnabled) {
+      audioPlayers[beat].seek(Duration.zero);
+      audioPlayers[beat].play(_soundSources[beat]);
+    }
     if (_vibrateEnabled) {
       // accounts for soundpool delay
       Future.delayed(
         const Duration(milliseconds: 55),
         () {
-          Vibration.vibrate(duration: 75);
+          Vibration.vibrate(
+            duration: 150,
+            sharpness: 50,
+          );
         },
       );
     }

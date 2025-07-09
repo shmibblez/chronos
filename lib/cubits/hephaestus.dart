@@ -1,3 +1,4 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -10,7 +11,7 @@ class Toolbox {
     required this.vibrateEnabled,
     required this.clickEnabled,
     required this.vibrateAvailable,
-    required this.soundId,
+    required this.soundSources,
     required this.presetsEnabled,
   });
 
@@ -22,7 +23,7 @@ class Toolbox {
     bool? blinkEnabled,
     bool? vibrateEnabled,
     bool? clickEnabled,
-    int? soundId,
+    List<Source>? soundSources,
     bool? presetsEnabled,
   })  : color1 = color1 ?? old.color1,
         color2 = color2 ?? old.color2,
@@ -30,7 +31,7 @@ class Toolbox {
         vibrateEnabled = vibrateEnabled ?? old.vibrateEnabled,
         clickEnabled = clickEnabled ?? old.clickEnabled,
         vibrateAvailable = old.vibrateAvailable,
-        soundId = soundId ?? old.soundId,
+        soundSources = soundSources ?? old.soundSources,
         presetsEnabled = presetsEnabled ?? old.presetsEnabled;
 
   /// instance variables
@@ -50,22 +51,23 @@ class Toolbox {
   final bool vibrateEnabled;
   final bool clickEnabled;
   final bool vibrateAvailable;
-  final int soundId;
+  final List<Source> soundSources;
   final bool presetsEnabled;
 
   /// taking [bk] as background color, return color for text such that it's visible on it
   ///
   /// tries to return [xt], but if [bk] and [xt] are too similar, returns bk's opposite color
   Color visibleTextColor(Color bk, Color xt) {
-    double avgDiff = ((bk.red - xt.red).abs() +
-            (bk.green - xt.green).abs() +
-            (bk.blue - xt.blue).abs()) /
+    double avgDiff = ((bk.r - xt.r).abs() +
+            (bk.g - xt.g).abs() +
+            (bk.b - xt.b).abs()) /
         3;
 
     // if [xt] is different enough from [bk], return [xt]
     if (avgDiff > 10) return xt;
     // if not different enough, return opposite color
-    return Color.fromARGB(255, 255 - bk.red, 255 - bk.green, 255 - bk.blue);
+    return Color.from(alpha: 1.0, red: 1.0-bk.r, green: 1.0-bk.g, blue: 1.0-bk.b);
+    // return Color.fromARGB(255, 255 - bk.red, 255 - bk.green, 255 - bk.blue);
   }
 }
 
