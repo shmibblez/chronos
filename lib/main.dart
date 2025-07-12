@@ -333,7 +333,7 @@ class _HomeState extends State<Home> {
                           BlocProvider.of<Chronos>(context).togglePlaying();
                         },
                         onLongPress: () {
-                          // show dialog that allows toggling tempo display options
+                          // todo: show edit preset dialog, if default show add preset dialog
                         },
                       ),
                     ),
@@ -355,20 +355,20 @@ class _HomeState extends State<Home> {
                   height: kBottomNavigationBarHeight,
                   color: backgroundColor,
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       /// bpm modifier and display
+                      // rebuild when bpm changes
                       BlocBuilder<Hermes, Preset>(
-                          // rebuild when bpm changes
-                          buildWhen: (prev, curr) => prev.bpm != curr.bpm,
-                          builder: (context, preset) {
-                            if (_oldPreset?.key != preset.key ||
-                                _oldPreset?.bpm != preset.bpm ||
-                                _bpmController.text.isEmpty) {
-                              _bpmController.text = preset.bpm.toString();
-                            }
-                            return Expanded(
-                                child: Row(
+                        buildWhen: (prev, curr) => prev.bpm != curr.bpm,
+                        builder: (context, preset) {
+                          if (_oldPreset?.key != preset.key ||
+                              _oldPreset?.bpm != preset.bpm ||
+                              _bpmController.text.isEmpty) {
+                            _bpmController.text = preset.bpm.toString();
+                          }
+                          return Expanded(
+                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 SizedBox(
@@ -392,8 +392,10 @@ class _HomeState extends State<Home> {
                                 ),
                                 Text("bpm", style: textStyle),
                               ],
-                            ));
-                          }),
+                            ),
+                          );
+                        },
+                      ),
 
                       /// beat indicator selector
                       const BeatIndicators(),
@@ -435,53 +437,55 @@ class BeatIndicators extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<Hephaestus, Toolbox>(
-        buildWhen: (prev, curr) =>
-            prev.blinkEnabled != curr.blinkEnabled ||
-            prev.vibrateEnabled != curr.vibrateEnabled ||
-            prev.clickEnabled != curr.clickEnabled ||
-            prev.color1 != curr.color1 ||
-            prev.color2 != curr.color2,
-        builder: (context, settings) {
-          Color darker = settings.color2d;
-          Color lighter = settings.color2l;
+      buildWhen: (prev, curr) =>
+          prev.blinkEnabled != curr.blinkEnabled ||
+          prev.vibrateEnabled != curr.vibrateEnabled ||
+          prev.clickEnabled != curr.clickEnabled ||
+          prev.color1 != curr.color1 ||
+          prev.color2 != curr.color2,
+      builder: (context, settings) {
+        Color darker = settings.color2d;
+        Color lighter = settings.color2l;
 
-          /// #6
-          return Wrap(
-            direction: Axis.horizontal,
-            alignment: WrapAlignment.center,
-            children: [
-              /// blink indicator
+        /// #6
+        return Wrap(
+          direction: Axis.horizontal,
+          alignment: WrapAlignment.center,
+          children: [
+            // blink indicator is always enabled
+            // /// blink indicator
+            // IconButton(
+            //   onPressed: () {
+            //     BlocProvider.of<Hephaestus>(context).toggleBlinkEnabled();
+            //   },
+            //   icon: settings.blinkEnabled
+            //       ? Icon(Icons.lightbulb, color: lighter)
+            //       : Icon(Icons.lightbulb_outline, color: darker),
+            // ),
+
+            /// vibrate indicator, only show if device can vibrate
+            if (settings.vibrateAvailable)
               IconButton(
                 onPressed: () {
-                  BlocProvider.of<Hephaestus>(context).toggleBlinkEnabled();
+                  BlocProvider.of<Hephaestus>(context).toggleVibrateEnabled();
                 },
-                icon: settings.blinkEnabled
-                    ? Icon(Icons.lightbulb, color: lighter)
-                    : Icon(Icons.lightbulb_outline, color: darker),
+                icon: settings.vibrateEnabled
+                    ? Icon(Icons.vibration, color: lighter)
+                    : Icon(Icons.phone_android_sharp, color: darker),
               ),
 
-              /// vibrate indicator, only show if device can vibrate
-              if (settings.vibrateAvailable)
-                IconButton(
-                  onPressed: () {
-                    BlocProvider.of<Hephaestus>(context).toggleVibrateEnabled();
-                  },
-                  icon: settings.vibrateEnabled
-                      ? Icon(Icons.vibration, color: lighter)
-                      : Icon(Icons.phone_android_sharp, color: darker),
-                ),
-
-              /// click indicator
-              IconButton(
-                onPressed: () {
-                  BlocProvider.of<Hephaestus>(context).toggleClickEnabled();
-                },
-                icon: settings.clickEnabled
-                    ? Icon(Icons.volume_up_rounded, color: lighter)
-                    : Icon(Icons.volume_off_rounded, color: darker),
-              ),
-            ],
-          );
-        });
+            /// click indicator
+            IconButton(
+              onPressed: () {
+                BlocProvider.of<Hephaestus>(context).toggleClickEnabled();
+              },
+              icon: settings.clickEnabled
+                  ? Icon(Icons.volume_up_rounded, color: lighter)
+                  : Icon(Icons.volume_off_rounded, color: darker),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

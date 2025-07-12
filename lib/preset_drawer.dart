@@ -148,47 +148,53 @@ class _PresetDrawerState extends State<PresetDrawer> {
         // Desktop/Tablet:
         // Maximum width for a left nav is 400dp.
         // The right nav can vary depending on content.
-        final screenW = MediaQuery.of(context).size.width;
-        final w = min((screenW * (2 / 3)).truncate().toDouble(), 304.0);
+        // final screenW = MediaQuery.of(context).size.width;
+        // final w = min((screenW * (2 / 3)).truncate().toDouble(), 304.0);
         // rebuild when relevant app settings change
 
         return SizedBox(
           height: double.infinity,
-          width: w,
+          // width: w,
           child: Scaffold(
-            backgroundColor: Colors.transparent,
-            body: BottomSheet(
-              onClosing: () => {},
-              backgroundColor: settings.color1d.withAlpha(255),
-              // controller: _sc,
-              // minHeight: MediaQuery.of(context).size.height,
-              // duration: const Duration(milliseconds: 300),
-              // snapSpec: SnapSpec(
-              //   initialSnap: settings.presetsEnabled ? SnapSpec.headerSnap : 0,
-              //   snappings: [SnapSpec.headerSnap, 1],
-              //   positioning: SnapPositioning.relativeToAvailableSpace,
-              // ),
-              // body: buildPreset(settings),
-              // headerBuilder: (_, state) => SliderHeader(
-              //   state: _HeaderState.peeking,
-              //   action: _onClickPanelHeader,
-              //   newPreset: _onClickNewPreset,
-              //   controller: _hc,
-              // ),
-              // listener: (state) {
-              //   if (state.isExpanded) {
-              //     _hc.notifyExpanded();
-              //   } else {
-              //     _hc.notifyPeeking();
-              //   }
-              // },
-              builder: (_) => PresetList(
+              backgroundColor: Colors.transparent,
+              body: PresetList(
                 // controller: controller,
                 action: _peek,
                 delete: (preset) => _onPresetDeleted(enabledAfter: true),
+              )
+
+              // BottomSheet(
+              //   onClosing: () => {},
+              //   backgroundColor: settings.color1d.withAlpha(255),
+              //   // controller: _sc,
+              //   // minHeight: MediaQuery.of(context).size.height,
+              //   // duration: const Duration(milliseconds: 300),
+              //   // snapSpec: SnapSpec(
+              //   //   initialSnap: settings.presetsEnabled ? SnapSpec.headerSnap : 0,
+              //   //   snappings: [SnapSpec.headerSnap, 1],
+              //   //   positioning: SnapPositioning.relativeToAvailableSpace,
+              //   // ),
+              //   // body: buildPreset(settings),
+              //   // headerBuilder: (_, state) => SliderHeader(
+              //   //   state: _HeaderState.peeking,
+              //   //   action: _onClickPanelHeader,
+              //   //   newPreset: _onClickNewPreset,
+              //   //   controller: _hc,
+              //   // ),
+              //   // listener: (state) {
+              //   //   if (state.isExpanded) {
+              //   //     _hc.notifyExpanded();
+              //   //   } else {
+              //   //     _hc.notifyPeeking();
+              //   //   }
+              //   // },
+              //   builder: (_) => PresetList(
+              //     // controller: controller,
+              //     action: _peek,
+              //     delete: (preset) => _onPresetDeleted(enabledAfter: true),
+              //   ),
+              // ),
               ),
-            ),
-          ),
         );
       },
     );
@@ -306,23 +312,28 @@ class _PresetDrawerState extends State<PresetDrawer> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               /// presets enabled toggle
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text(
-                  "Presets Enabled:",
-                  style: textStyle.copyWith(fontWeight: FontWeight.bold),
-                ),
-                BlocBuilder<Hephaestus, Toolbox>(builder: (_, t) {
-                  return Switch(
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    value: t.presetsEnabled,
-                    onChanged: (enabled) async {
-                      _setPreset(enabled);
-                      BlocProvider.of<Hephaestus>(context)
-                          .updatePresetsEnabled(enabled);
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Presets Enabled:",
+                    style: textStyle.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  BlocBuilder<Hephaestus, Toolbox>(
+                    builder: (_, t) {
+                      return Switch(
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        value: t.presetsEnabled,
+                        onChanged: (enabled) async {
+                          _setPreset(enabled);
+                          BlocProvider.of<Hephaestus>(context)
+                              .updatePresetsEnabled(enabled);
+                        },
+                      );
                     },
-                  );
-                }),
-              ]),
+                  ),
+                ],
+              ),
 
               /// separator
               Divider(color: dividerColor),

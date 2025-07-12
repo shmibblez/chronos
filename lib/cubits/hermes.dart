@@ -328,20 +328,36 @@ class _PresetListState extends State<PresetList> {
         physics: const AlwaysScrollableScrollPhysics(),
         primary: false,
         // controller: widget.controller,
-        itemCount: _presets.length + 1,
+        // first item is add preset item
+        itemCount: 1 + _presets.length + 1,
         itemBuilder: (_, i) {
+          if (i == 0) {
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // no existing presets item
+                  if (_presets.isEmpty) ...[
+                    const Text("no presets yet", textAlign: TextAlign.center)
+                  ],
+                  // add preset item
+                  OutlinedButton(
+                    onPressed: () {
+                      // todo: show left drawer
+                    },
+                    child: Text("add preset"),
+                  )
+                ],
+              ),
+            );
+          }
           if (i >= _presets.length) {
+            // no more text item
             if (_noMore) {
-              if (_presets.isEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  child: const Text("no presets found",
-                      textAlign: TextAlign.center),
-                );
-              }
               return Container(
                 padding: const EdgeInsets.all(16),
-                child: const Text("end of list", textAlign: TextAlign.center),
+                child: const Text("no more items", textAlign: TextAlign.center),
               );
             }
             // load some presets if at end of list
