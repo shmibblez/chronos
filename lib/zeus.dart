@@ -8,7 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Zeus holds Thunderbolts and activates them when necessary
 class Zeus extends StatefulWidget {
-  const Zeus({Key? key}) : super(key: key);
+  const Zeus({super.key});
 
   @override
   State<StatefulWidget> createState() => _ZeusState();
@@ -23,14 +23,14 @@ class _ZeusState extends State<Zeus> {
   /// lay out thunderbolts evenly in Column
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<Hermes, Preset>(
+    return BlocBuilder<Hermes, Preset?>(
       buildWhen: (oldSettings, newSettings) =>
-          oldSettings.beatsPerBar != newSettings.beatsPerBar,
+          oldSettings?.beatsPerBar != newSettings?.beatsPerBar,
       builder: (_, settings) {
         // init thunderbolts and controllers
         _thunderbolts = [];
         _thunderboltControllers = [];
-        for (int i = 0; i < settings.beatsPerBar; i++) {
+        for (int i = 0; i < (settings?.beatsPerBar ?? 0); i++) {
           _thunderboltControllers.add(ThunderboltController());
           _thunderbolts.add(Thunderbolt(
             controller: _thunderboltControllers.last,
@@ -79,8 +79,7 @@ class ThunderboltController {
 /// Thunderbolt lights up when called upon
 class Thunderbolt extends StatefulWidget {
   const Thunderbolt(
-      {required this.controller, Key? key, this.initiallyUnleashed = false})
-      : super(key: key);
+      {required this.controller, super.key, this.initiallyUnleashed = false});
   final bool initiallyUnleashed;
   final ThunderboltController controller;
   @override

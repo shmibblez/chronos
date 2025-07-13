@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class HelpButton extends StatelessWidget {
-  const HelpButton({required this.msg, Key? key}) : super(key: key);
+  const HelpButton({required this.msg, super.key});
 
   final String msg;
 

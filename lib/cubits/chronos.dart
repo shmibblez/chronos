@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:chronos/cubits/hephaestus.dart';
 import 'package:chronos/cubits/hermes.dart';
+import 'package:chronos/cubits/mnemosyne.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vibration/vibration.dart';
@@ -17,28 +18,30 @@ import 'package:vibration/vibration.dart';
 class Chronos extends Cubit<int> {
   Chronos(
       {required BuildContext context,
-      required this.audioPlayers,
       int first = 0,
       initiallyPlaying = true})
       : super(validateFirstBeat(
-            first, BlocProvider.of<Hermes>(context).state.beatsPerBar)) {
-    Preset preset = BlocProvider.of<Hermes>(context).state;
-    _limit = preset.beatsPerBar;
-    _timerPeriod = preset.beatPeriod;
+            first, BlocProvider.of<Hermes>(context).state?.beatsPerBar ?? 4)) {
+    _periodDurationMs = 0;
+    _lastPeriodResetMs = DateTime.now().millisecondsSinceEpoch;
+    Preset? preset = BlocProvider.of<Hermes>(context).state;
+    _limit = preset?.beatsPerBar ?? 4;
+    _timerPeriod = preset?.beatPeriod ?? Duration.zero;
     Toolbox toolbox = BlocProvider.of<Hephaestus>(context).state;
     _clickEnabled = toolbox.clickEnabled;
     _vibrateEnabled = toolbox.vibrateEnabled;
-    _soundSources = toolbox.soundSources;
+    _soundSource = toolbox.soundSource;
     if (initiallyPlaying) _initTimer(_timerPeriod);
     // listen to Hermes for preset changes
     _hermesSub = BlocProvider.of<Hermes>(context).stream.listen(
       (event) async {
         // update changed settings
-        if (event.beatsPerBar != _limit) {
-          _limit = event.beatsPerBar;
+        if (event?.beatsPerBar != _limit) {
+          _limit = event?.beatsPerBar ?? 4;
+
         }
-        if (_timerPeriod != event.beatPeriod) {
-          _timerPeriod = event.beatPeriod;
+        if (_timerPeriod != event?.beatPeriod) {
+          _timerPeriod = event?.beatPeriod ?? Duration.zero;
           await _periodChanged(_timerPeriod);
         }
       },
@@ -52,8 +55,8 @@ class Chronos extends Cubit<int> {
         if (event.vibrateEnabled != _vibrateEnabled) {
           _vibrateEnabled = event.vibrateEnabled;
         }
-        if (event.soundSources != _soundSources) {
-          _soundSources = event.soundSources;
+        if (event.soundSource != _soundSource) {
+          _soundSource = event.soundSource;
         }
       },
     );
@@ -62,25 +65,33 @@ class Chronos extends Cubit<int> {
   /// lifecycle end
   @override
   Future<void> close() async {
-    super.close();
+    await super.close();
     // _timer?.clo();
-    _hermesSub.cancel();
-    _hephasestusSub.cancel();
-    for (AudioPlayer ap in audioPlayers) {
-      ap.release();
-    }
+    await _hermesSub.cancel();
+    await _hephasestusSub.cancel();
   }
 
   /// instance variables
-  late final StreamSubscription<Preset> _hermesSub;
+  // progress of current beat, from 0 to 1
+  late int _periodDurationMs;
+  late int _lastPeriodResetMs;
+  late final StreamSubscription<Preset?> _hermesSub;
   late final StreamSubscription<Toolbox> _hephasestusSub;
   late int _limit;
   late Duration _timerPeriod;
   StreamSubscription<void>? _timerSub;
-  late List<Source> _soundSources;
+  late Source _soundSource;
   late bool _clickEnabled;
   late bool _vibrateEnabled;
-  final List<AudioPlayer> audioPlayers;
+
+  double get progress {
+    return ((DateTime.now().millisecondsSinceEpoch - _lastPeriodResetMs) /
+        _periodDurationMs).clamp(0.0, 1.0);
+  }
+
+  int get beatsPerBar {
+    return _limit;
+  }
 
   /// other instance variables
   bool get playing {
@@ -93,6 +104,7 @@ class Chronos extends Cubit<int> {
 
   /// init timer from duration
   void _initTimer(Duration d) {
+    _periodDurationMs = d.inMilliseconds;
     _timerSub = Stream<void>.periodic(d).listen((_) {
       beat();
     });
@@ -104,9 +116,10 @@ class Chronos extends Cubit<int> {
   Future<void> _periodChanged(Duration d) async {
     if (!playing) return;
     // update sub callback, allows for smooth tempo changes
+    _periodDurationMs = d.inMilliseconds;
     _timerSub!.onData((i) {
       beat();
-      // remove current sub
+      // // remove current sub
       _timerSub?.pause();
       _timerSub?.cancel();
       _timerSub = null;
@@ -127,7 +140,6 @@ class Chronos extends Cubit<int> {
   /// start playing
   void start() {
     if (playing) return;
-    beat();
     _initTimer(_timerPeriod);
   }
 
@@ -141,6 +153,7 @@ class Chronos extends Cubit<int> {
 
   /// increment and emit beat #
   int beat() {
+    _lastPeriodResetMs = DateTime.now().millisecondsSinceEpoch;
     late int beat;
     if (state + 1 > _limit - 1) {
       beat = 0;
@@ -148,9 +161,10 @@ class Chronos extends Cubit<int> {
       beat = state + 1;
     }
     emit(beat);
+    final audioPlayers = Mnemosyne().audioPlayers;
     if (_clickEnabled) {
-      audioPlayers[beat].seek(Duration.zero);
-      audioPlayers[beat].play(_soundSources[beat]);
+      audioPlayers?.elementAtOrNull(beat)?.seek(Duration.zero);
+      audioPlayers?.elementAtOrNull(beat)?.play(_soundSource);
     }
     if (_vibrateEnabled) {
       // accounts for soundpool delay

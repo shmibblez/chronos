@@ -7,12 +7,11 @@ import 'package:chronos/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'dart:math' show min;
 
 dynamic printPresetKeys(List<Preset> presets) {
   log("-- keys:");
   for (Preset p in presets) {
-    log("   ${p.key}, millis: ${p.millis.toString()} ${p.isDefault ? " (default)" : ""}");
+    log("   ${p.key}, millis: ${p.millis.toString()}");
   }
   log("-------");
 }
@@ -26,7 +25,7 @@ dynamic printPresetKeys(List<Preset> presets) {
 ///
 /// selected preset is shown, all values are shown in [TextField]s so can be easily edited
 class PresetDrawer extends StatefulWidget {
-  const PresetDrawer({Key? key}) : super(key: key);
+  const PresetDrawer({super.key});
 
   @override
   State<StatefulWidget> createState() => _PresetDrawerState();
@@ -37,7 +36,6 @@ class _PresetDrawerState extends State<PresetDrawer> {
   // todo: add animation controller to show, hide, expand
   //  also add header
   //  what to put for vsync?
-  late AnimationController _ac;
   late final TextEditingController _nameController;
   late final TextEditingController _bpmController;
   late final TextEditingController _beatsPerBarController;
@@ -132,14 +130,11 @@ class _PresetDrawerState extends State<PresetDrawer> {
     // },
     return BlocBuilder<Hephaestus, Toolbox>(
       // rebuild whole tree only if any colors change
-      // or if presets enabled state changed
-      buildWhen: (ps, cs) =>
-          ps.color1 != cs.color1 ||
-          ps.color2 != cs.color2 ||
-          ps.presetsEnabled != cs.presetsEnabled,
+      // or if presets enabled state changedCanvas
+      buildWhen: (ps, cs) => ps.color1 != cs.color1 || ps.color2 != cs.color2,
       builder: (_, settings) {
         // set initial preset
-        _setPreset(settings.presetsEnabled);
+        _setPreset();
         // Mobile:
         // Width = Screen width − 56 dp
         // Maximum width: 320dp
@@ -159,8 +154,7 @@ class _PresetDrawerState extends State<PresetDrawer> {
               backgroundColor: Colors.transparent,
               body: PresetList(
                 // controller: controller,
-                action: _peek,
-                delete: (preset) => _onPresetDeleted(enabledAfter: true),
+                delete: (preset) => _onPresetDeleted(),
               )
 
               // BottomSheet(
@@ -232,63 +226,19 @@ class _PresetDrawerState extends State<PresetDrawer> {
     if (_notesFocusNode.hasFocus) _notesFocusNode.unfocus();
   }
 
-  void _setPreset(bool enabled) {
-    if (enabled) {
-      _peek();
-      BlocProvider.of<Hermes>(context).loadLastPreset();
-    } else if (!enabled) {
-      BlocProvider.of<Hermes>(context).loadDefault();
-      _hide();
-    }
-  }
-
-  /// collapse and only show header
-  /// called when preset selected from preset list
-  Future<void> _peek() async {
-    // todo
-    // await _sc.snapToExtent(SnapSpec.headerSnap);
-  }
-
-  /// completely expand sheet
-  /// called when presets enabled, or when user wants to change current preset
-  Future<void> _expand() async {
-    // todo
-    // await _sc.expand();
-  }
-
-  /// completely hide sheet
-  /// called when user cancels preset selection, or presets disabled
-  Future<void> _hide() async {
-    // todo
-    // await _sc.hide();
-  }
-
-  void _onClickPanelHeader() {
-    // todo
-    // if (_sc.state!.isCollapsed) {
-    //   _expand();
-    // } else {
-    //   _peek();
-    // }
+  void _setPreset() {
+    BlocProvider.of<Hermes>(context).loadLastPreset();
   }
 
   void _onClickNewPreset() {
     BlocProvider.of<Hermes>(context).loadNewPreset();
-    _peek();
   }
 
-  Future<void> _onPresetDeleted({required bool enabledAfter}) async {
+  Future<void> _onPresetDeleted() async {
     // active preset can be deleted (first list item)
     Hermes h = BlocProvider.of<Hermes>(context);
-    // if enabled after
-    if (enabledAfter) {
-      // load last preset to replace current one
-      h.loadLastPreset();
-    } else {
-      // else load default preset and disable presets
-      h.loadDefault();
-    }
-    BlocProvider.of<Hephaestus>(context).updatePresetsEnabled(enabledAfter);
+    // load last preset to replace current one
+    h.loadLastPreset();
   }
 
   Widget buildPreset(Toolbox settings) {
@@ -296,11 +246,10 @@ class _PresetDrawerState extends State<PresetDrawer> {
     final Color backgroundColor = settings.color1l;
     final Color textColor =
         settings.visibleTextColor(backgroundColor, settings.color2);
-    final Color dividerColor = settings.color2d;
     final TextStyle textStyle = TextStyle(color: textColor, fontSize: 14);
     // update old preset key
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _oldPresetKey = BlocProvider.of<Hermes>(context).state.key;
+      _oldPresetKey = BlocProvider.of<Hermes>(context).state?.key ?? "";
     });
     return Drawer(
       backgroundColor: backgroundColor,
@@ -311,45 +260,14 @@ class _PresetDrawerState extends State<PresetDrawer> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              /// presets enabled toggle
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Presets Enabled:",
-                    style: textStyle.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  BlocBuilder<Hephaestus, Toolbox>(
-                    builder: (_, t) {
-                      return Switch(
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        value: t.presetsEnabled,
-                        onChanged: (enabled) async {
-                          _setPreset(enabled);
-                          BlocProvider.of<Hephaestus>(context)
-                              .updatePresetsEnabled(enabled);
-                        },
-                      );
-                    },
-                  ),
-                ],
-              ),
-
-              /// separator
-              Divider(color: dividerColor),
-
               /// title text
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                BlocBuilder<Hermes, Preset>(
-                  buildWhen: (prev, curr) =>
-                      prev.name != curr.name ||
-                      prev.isDefault != curr.isDefault,
+                BlocBuilder<Hermes, Preset?>(
+                  buildWhen: (prev, curr) => prev?.name != curr?.name,
                   builder: (context, preset) {
-                    if (preset.isDefault) {
-                      _nameController.text = "";
-                    } else if (_oldPresetKey != preset.key ||
+                    if (_oldPresetKey != preset?.key ||
                         _nameController.text.isEmpty) {
-                      _nameController.text = preset.name;
+                      _nameController.text = preset?.name ?? "";
                     }
                     return Expanded(
                       child: Row(
@@ -357,9 +275,9 @@ class _PresetDrawerState extends State<PresetDrawer> {
                           Expanded(
                             child: TextField(
                               focusNode: _nameFocusNode,
-                              enabled: preset.isDefault ? false : true,
+                              enabled: true,
                               maxLength: ChronosConstants.maxNameLength,
-                              readOnly: preset.isDefault,
+                              readOnly: false,
                               style: textStyle,
                               textAlign: TextAlign.start,
                               controller: _nameController,
@@ -369,25 +287,23 @@ class _PresetDrawerState extends State<PresetDrawer> {
                               // onSubmitted:: _saveName,
                               decoration: InputDecoration(
                                 hintStyle: textStyle,
-                                hintText: preset.isDefault
-                                    ? "Default Preset"
-                                    : "new preset",
+                                hintText: "Preset Name",
                               ),
                             ),
                           ),
-                          // default preset cannot be deleted
-                          if (!preset.isDefault)
-                            IconButton(
-                              onPressed: () async {
+                          IconButton(
+                            onPressed: () async {
+                              if (preset != null) {
                                 await BlocProvider.of<Hermes>(context)
                                     .deletePreset(preset);
-                                _onPresetDeleted(enabledAfter: true);
-                              },
-                              icon: Icon(
-                                Icons.delete_forever,
-                                color: settings.color2,
-                              ),
-                            )
+                                _onPresetDeleted();
+                              }
+                            },
+                            icon: Icon(
+                              Icons.delete_forever,
+                              color: settings.color2,
+                            ),
+                          )
                         ],
                       ),
                     );
@@ -397,12 +313,12 @@ class _PresetDrawerState extends State<PresetDrawer> {
 
               /// edit bpm
               Row(children: [
-                BlocBuilder<Hermes, Preset>(
-                  buildWhen: (prev, curr) => prev.bpm != curr.bpm,
+                BlocBuilder<Hermes, Preset?>(
+                  buildWhen: (prev, curr) => prev?.bpm != curr?.bpm,
                   builder: (_, preset) {
-                    if (_oldPresetKey != preset.key ||
+                    if (_oldPresetKey != preset?.key ||
                         _bpmController.text.isEmpty) {
-                      _bpmController.text = preset.bpm.toString();
+                      _bpmController.text = preset?.bpm.toString() ?? "";
                     }
                     return Expanded(
                       child: TextField(
@@ -438,14 +354,14 @@ class _PresetDrawerState extends State<PresetDrawer> {
                   Expanded(
                     child: Row(
                       children: [
-                        BlocBuilder<Hermes, Preset>(
+                        BlocBuilder<Hermes, Preset?>(
                           buildWhen: (prev, curr) =>
-                              prev.beatsPerBar != curr.beatsPerBar,
+                              prev?.beatsPerBar != curr?.beatsPerBar,
                           builder: (_, preset) {
-                            if (_oldPresetKey != preset.key ||
+                            if (_oldPresetKey != preset?.key ||
                                 _beatsPerBarController.text.isEmpty) {
                               _beatsPerBarController.text =
-                                  preset.beatsPerBar.toString();
+                                  preset?.beatsPerBar.toString() ?? "";
                             }
                             return Expanded(
                               child: TextField(
@@ -463,14 +379,14 @@ class _PresetDrawerState extends State<PresetDrawer> {
                           },
                         ),
                         const Text("/"),
-                        BlocBuilder<Hermes, Preset>(
+                        BlocBuilder<Hermes, Preset?>(
                           buildWhen: (prev, curr) =>
-                              prev.barNote != curr.barNote,
+                              prev?.barNote != curr?.barNote,
                           builder: (_, preset) {
-                            if (_oldPresetKey != preset.key ||
+                            if (_oldPresetKey != preset?.key ||
                                 _barNoteController.text.isEmpty) {
                               _barNoteController.text =
-                                  preset.barNote.toString();
+                                  preset?.barNote.toString() ?? "";
                             }
                             return Expanded(
                               child: TextField(
@@ -504,7 +420,7 @@ class _PresetDrawerState extends State<PresetDrawer> {
                 ],
               ),
 
-              /// edit notes, also works in default mode
+              /// notes section
               Row(
                 children: [
                   Expanded(
@@ -520,49 +436,44 @@ class _PresetDrawerState extends State<PresetDrawer> {
                   ),
                 ],
               ),
-              Expanded(
-                child: BlocBuilder<Hermes, Preset>(
-                  buildWhen: (prev, curr) => prev.notes != curr.notes,
-                  builder: (_, preset) {
-                    if (_oldPresetKey != preset.key ||
-                        _notesController.text.isEmpty) {
-                      _notesController.text = preset.notes;
-                    }
-                    return TextField(
-                      focusNode: _notesFocusNode,
-                      maxLines: null,
-                      style: textStyle,
-                      textAlign: TextAlign.start,
-                      controller: _notesController,
-                      keyboardType: TextInputType.multiline,
-                      onChanged: (str) {
-                        // enable save notes button if changes detected
-                        if (preset.notes != str) {
-                          _saveNotesButtonController.enable();
-                        } else {
-                          _saveNotesButtonController.disable();
-                          _saveNotesButtonController.hide();
+              // notes
+              Row(
+                children: [
+                  // notes text
+                  Expanded(
+                    child: BlocBuilder<Hermes, Preset?>(
+                      buildWhen: (prev, curr) => prev?.notes != curr?.notes,
+                      builder: (_, preset) {
+                        if (_oldPresetKey != preset?.key ||
+                            _notesController.text.isEmpty) {
+                          _notesController.text = preset?.notes ?? "";
                         }
+                        return Text(
+                          preset?.notes ?? "",
+                          style: textStyle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.start,
+                        );
                       },
-                      decoration: InputDecoration(
-                        hintStyle: textStyle,
-                        hintText: "edit notes",
-                      ),
-                    );
-                  },
-                ),
+                    ),
+                  ),
+                  // edit notes icon
+                  GestureDetector(
+                    onTap: () {
+                      // todo: show note editor dialog
+                    },
+                    child: Icon(Icons.edit_note_rounded, color: Colors.white54),
+                  ),
+                  // edit notes icon
+                  GestureDetector(
+                    onTap: () {
+                      // todo: show note editor dialog
+                    },
+                    child: Icon(Icons.edit_note_rounded, color: Colors.white54),
+                  ),
+                ],
               ),
-              SaveNotesButton(
-                controller: _saveNotesButtonController,
-                onPressed: _saveNotes,
-                initiallyEnabled: false,
-                initiallyHidden: true,
-              ),
-              // if bottom peeking, add spacing to show all notes
-              if (settings.presetsEnabled)
-                const SizedBox(
-                  height: kBottomNavigationBarHeight,
-                ),
             ],
           ),
         ),
@@ -594,12 +505,12 @@ class SliderHeaderController {
 /// - notifies Mnemosyne of changes
 class SliderHeader extends StatefulWidget {
   const SliderHeader({
-    Key? key,
+    super.key,
     required this.state,
     required this.action,
     required this.newPreset,
     required this.controller,
-  }) : super(key: key);
+  });
 
   final _HeaderState state;
   final void Function() action;
@@ -727,12 +638,12 @@ class SaveNotesButtonController {
 
 class SaveNotesButton extends StatefulWidget {
   const SaveNotesButton({
-    Key? key,
+    super.key,
     required this.controller,
     required this.onPressed,
     this.initiallyEnabled = true,
     this.initiallyHidden = true,
-  }) : super(key: key);
+  });
   final SaveNotesButtonController controller;
   final void Function() onPressed;
   final bool initiallyEnabled;

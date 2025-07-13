@@ -105,7 +105,6 @@ class Preset {
 
   /// beat period in millis
   Duration get beatPeriod => Duration(milliseconds: (60000 / bpm).truncate());
-  bool get isDefault => key == "default";
 
   /// decodes preset from JSON in db
   static Preset fromJSON(
@@ -157,8 +156,8 @@ class Preset {
 }
 
 /// [Hermes] transports presets between Mnemosyne and widgets
-class Hermes extends Cubit<Preset> {
-  Hermes(Preset initialState) : super(initialState);
+class Hermes extends Cubit<Preset?> {
+  Hermes(Preset super.initialState);
 
   /// !! does not emit change (millis not shown in UI) !!
   ///
@@ -178,83 +177,92 @@ class Hermes extends Cubit<Preset> {
 
   // update name, notify Mnemosyne
   Future<void> updateName(String name) async {
+    final Preset? preset = state;
+    if (preset == null) return;
     String validated = Preset.validateName(name);
-    if (validated == state.name) return;
-    var f = Mnemosyne().updatePreset(state, name: validated);
-    emit(Preset.from(state, name: validated));
+    if (validated == preset.name) return;
+    var f = Mnemosyne().updatePreset(preset, name: validated);
+    emit(Preset.from(preset, name: validated));
     await f;
   }
 
   /// update bpm by amount, notify Mnemosyne
   Future<void> updateBPMby(int bpm) async {
+    final Preset? preset = state;
+    if (preset == null) return;
     if (bpm == 0) return;
-    await updateBPM(state.bpm + bpm);
+    await updateBPM(preset.bpm + bpm);
   }
 
   /// update bpm, notify Mnemosyne
   Future<void> updateBPM(int bpm) async {
+    final Preset? preset = state;
+    if (preset == null) return;
     int validated = Preset.validateBPM(bpm);
-    if (validated == state.bpm) return;
-    var f = Mnemosyne().updatePreset(state, bpm: bpm);
-    emit(Preset.from(state, bpm: validated));
+    if (validated == preset.bpm) return;
+    var f = Mnemosyne().updatePreset(preset, bpm: bpm);
+    emit(Preset.from(preset, bpm: validated));
     await f;
   }
 
   /// update bpm by amount, notify Mnemosyne
   void updateBPMbyThrottled(int bpm) {
+    final Preset? preset = state;
+    if (preset == null) return;
     if (bpm == 0) return;
-    updateBPMThrottled(bpm + state.bpm);
+    updateBPMThrottled(bpm + preset.bpm);
   }
 
   /// update bpm periodically, notify Mnemosyne
   void updateBPMThrottled(int bpm) {
+    final Preset? preset = state;
+    if (preset == null) return;
     int validated = Preset.validateBPM(bpm);
-    if (validated == state.bpm) return;
-    Mnemosyne().updateBPMThrottled(validated, state);
-    emit(Preset.from(state, bpm: validated));
+    if (validated == preset.bpm) return;
+    Mnemosyne().updateBPMThrottled(validated, preset);
+    emit(Preset.from(preset, bpm: validated));
   }
 
   /// update beats per barNote, notify Mnemosyne
   Future<void> updateBeatsPerBar(int beats) async {
+    final Preset? preset = state;
+    if (preset == null) return;
     int validated = Preset.validateBeatsPerBar(beats);
-    if (validated == state.beatsPerBar) return;
-    var f = Mnemosyne().updatePreset(state, beatsPerBar: validated);
-    emit(Preset.from(state, beatsPerBar: validated));
+    if (validated == preset.beatsPerBar) return;
+    var f = Mnemosyne().updatePreset(preset, beatsPerBar: validated);
+    emit(Preset.from(preset, beatsPerBar: validated));
     await f;
   }
 
   /// update barNote, notify Mnemosyne
   Future<void> updateBarNote(int barNote) async {
+    final Preset? preset = state;
+    if (preset == null) return;
     int validated = Preset.validateBarNote(barNote);
-    if (barNote == state.barNote) return;
-    var f = Mnemosyne().updatePreset(state, barNote: validated);
-    emit(Preset.from(state, barNote: validated));
+    if (barNote == preset.barNote) return;
+    var f = Mnemosyne().updatePreset(preset, barNote: validated);
+    emit(Preset.from(preset, barNote: validated));
     await f;
   }
 
   /// update user's notes, notify Mnemosyne
   Future<void> updateNotes(String notes) async {
+    final Preset? preset = state;
+    if (preset == null) return;
     String validated = Preset.validateNotes(notes);
-    if (validated == state.notes) return;
-    var f = Mnemosyne().updatePreset(state, notes: validated);
-    emit(Preset.from(state, notes: validated));
+    if (validated == preset.notes) return;
+    var f = Mnemosyne().updatePreset(preset, notes: validated);
+    emit(Preset.from(preset, notes: validated));
     await f;
-  }
-
-  /// load default preset and set as current
-  Future<Preset> loadDefault() async {
-    Preset p = await Mnemosyne().defaultPreset();
-    emit(p);
-    return p;
   }
 
   /// load last used preset and set as current
   /// if no last preset exists, create and load new one
-  Future<Preset> loadLastPreset({bool includDefault = false}) async {
-    Preset? p = await Mnemosyne().lastPreset(includeDefault: includDefault);
+  Future<Preset> loadLastPreset() async {
+    Preset p = await Mnemosyne().lastPreset();
     log("last preset: $p");
     // if no preset exists create new one
-    p ??= await Mnemosyne().newPreset();
+    // p ??= await Mnemosyne().newPreset();
     emit(p);
     return p;
   }
@@ -269,12 +277,10 @@ class Hermes extends Cubit<Preset> {
 
 class PresetList extends StatefulWidget {
   const PresetList({
-    Key? key,
-    required this.action,
+    super.key,
     required this.delete,
     // this.controller,
-  }) : super(key: key);
-  final void Function() action;
+  });
   final void Function(Preset) delete;
   // final ScrollController? controller;
 
@@ -285,7 +291,7 @@ class PresetList extends StatefulWidget {
 class _PresetListState extends State<PresetList> {
   late bool _noMore;
   late bool _loading;
-  late StreamSubscription<Preset> _presetStream;
+  late StreamSubscription<Preset?> _presetStream;
 
   List<Preset> get _presets => Mnemosyne().presets;
   @override
@@ -411,8 +417,7 @@ class _PresetListState extends State<PresetList> {
     );
     // also updates list shown
     setState(() {
-      // does ui stuff
-      widget.action();
+      // updates list
     });
   }
 

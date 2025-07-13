@@ -64,21 +64,17 @@ class Mnemosyne {
     );
 
     // begin loading
-    var l = await lastPreset(includeDefault: true);
+    var l = await lastPreset();
 
     // setup audio players
-    audioPlayers = List.empty(growable: true);
-    for (int i = 0; i < l!.beatsPerBar; i++) {
-      audioPlayers!.add(AudioPlayer());
-      await audioPlayers!.last.setReleaseMode(ReleaseMode.stop);
-    }
+    _updateAudioPlayers(l.beatsPerBar);
     // todo: when support for more or custom sounds is added, load file to audio cache:
     //  audioPlayer?.audioCache = AudioCache();
     //  audioPlayer?.audioCache.load(fileName)
     // // todo: if load fails then use default asset, it probably means file doesn't exist
 
     // load last toolbox, depends on [audioPlayers]
-    var t = await lastToolbox(presetsEnabled: !l.isDefault);
+    var t = await lastToolbox();
 
     var d = InitialData(
       toolbox: t,
@@ -90,7 +86,7 @@ class Mnemosyne {
   }
 
   /// loads last toolbox
-  Future<Toolbox> lastToolbox({required bool presetsEnabled}) async {
+  Future<Toolbox> lastToolbox() async {
     var prefs = await _prefStore!.record("prefs").get(_db!);
     // get sound file path
     // todo: fix sembast file structure, also add selected sound path, could be asset or other.
@@ -99,10 +95,9 @@ class Mnemosyne {
     //  this could be handled in audio player, in error listener if file not found, use default sound
     // final ByteData bytes = await rootBundle.load(prefs["sound"]); // #7
     // load asset into soundpool
-    final List<Source> soundSources = List.empty(growable: true);
+    final Source soundSource = AssetSource("sounds/wood_sound.wav");
     for (AudioPlayer ap in audioPlayers!) {
       await ap.audioCache.load("sounds/wood_sound.wav");
-      soundSources.add(AssetSource("sounds/wood_sound.wav"));
     }
     // check if can vibrate
     final bool canVibrate = await Vibration.hasVibrator();
@@ -116,8 +111,7 @@ class Mnemosyne {
       vibrateEnabled: prefs["vibrateEnabled"],
       clickEnabled: prefs["clickEnabled"],
       vibrateAvailable: canVibrate && !kIsWeb,
-      soundSources: soundSources,
-      presetsEnabled: presetsEnabled, // prefs["presetsEnabled"],
+      soundSource: soundSource,
     );
 
     return t;
@@ -125,35 +119,26 @@ class Mnemosyne {
 
   /// loads last preset used
   /// Preset will be null if default not included and none exist yet
-  Future<Preset?> lastPreset({bool includeDefault = false}) async {
+  Future<Preset> lastPreset() async {
     final finder = Finder(
       sortOrders: [SortOrder("millis", false)],
       // whether to include default preset or not
-      filter: includeDefault ? null : Filter.notEquals(Field.key, "default"),
+      filter: null,
       limit: 1,
     );
     final lastPresetSnap =
         (await _presetStore!.findFirst(_db!, finder: finder));
     final lastPreset = (lastPresetSnap == null
-        ? null
+        ? await newPreset()
         : Preset.fromJSON(lastPresetSnap.key, lastPresetSnap.value));
-
-    // if last preset nonexistent return null
-    if (lastPreset == null) return lastPreset;
 
     // if last preset exists, should be first in list,
     // if not there, insert
-    if (!lastPreset.isDefault &&
-        (_presets!.isEmpty || _presets!.first.key != lastPreset.key)) {
+    if (_presets!.isEmpty || _presets!.first.key != lastPreset.key) {
       log("last preset added to _presets, key: ${lastPreset.key} -- [Mnemosyne.lastPreset]");
       _presets!.insert(0, lastPreset);
     }
     return lastPreset;
-  }
-
-  Future<Preset> defaultPreset() async {
-    var defaultPreset = await _presetStore!.record("default").getSnapshot(_db!);
-    return Preset.fromJSON(defaultPreset!.key, defaultPreset.value!);
   }
 
   /// creates new preset with random key
@@ -202,6 +187,23 @@ class Mnemosyne {
     return presets.toList();
   }
 
+  Future<void> _updateAudioPlayers(int bpb) async {
+    audioPlayers ??= List.empty(growable: true);
+      // if smaller add players
+    while (audioPlayers!.length < bpb) {
+      audioPlayers!.add(AudioPlayer());
+      await audioPlayers!.last.setReleaseMode(ReleaseMode.stop);
+    }
+    if (audioPlayers!.length > bpb - 1) {
+      // for sublist, start inclusive, end exclusive
+      final removed = audioPlayers!.sublist(bpb, audioPlayers!.length);
+      audioPlayers = audioPlayers!.sublist(0,bpb);
+      for (final ap in removed) {
+        await ap.dispose();
+      }
+    }
+  }
+
   /// send update to db with values given
   Future<void> updatePreset(
     Preset old, {
@@ -222,19 +224,14 @@ class Mnemosyne {
       millis: millis ?? old.millis,
       notes: notes ?? old.notes,
     );
-    if (old.isDefault) {
-      // if preset default, ensure values are right
-      updated = Preset.from(updated, name: "default", key: "default");
-      log("updated default preset -- [Mnemosyne.updatePreset]");
-    } else {
-      // if preset not default, find index and then ...
-      int i = _presets!.indexWhere((element) => element.key == old.key);
-      if (i >= 0 && i < _presets!.length) {
-        // ... move to first in list
-        _presets!.removeAt(i);
-        _presets!.insert(0, updated);
-        log("updated & moved preset to first in _presets, key: ${updated.key} -- [Mnemosyne.updatePreset]");
-      }
+    _updateAudioPlayers(updated.beatsPerBar);
+    // if preset not default, find index and then ...
+    int i = _presets!.indexWhere((element) => element.key == old.key);
+    if (i >= 0 && i < _presets!.length) {
+      // ... move to first in list
+      _presets!.removeAt(i);
+      _presets!.insert(0, updated);
+      log("updated & moved preset to first in _presets, key: ${updated.key} -- [Mnemosyne.updatePreset]");
     }
     // update db
     await _presetStore!.record(old.key).update(_db!, Preset.toJSON(updated));

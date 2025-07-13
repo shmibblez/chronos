@@ -5,8 +5,8 @@ import 'package:chronos/cubits/chronos.dart';
 import 'package:chronos/cubits/hephaestus.dart';
 import 'package:chronos/cubits/hermes.dart';
 import 'package:chronos/cubits/mnemosyne.dart';
+import 'package:chronos/home/homepage.dart';
 import 'package:chronos/preset_drawer.dart';
-import 'package:chronos/settings_drawer.dart';
 import 'package:chronos/zeus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -51,11 +51,10 @@ class ChronosConstants {
   static final defPrefs = {
     "color1": defaultColor1.value,
     "color2": defaultColor2.value,
-    "blinkEnabled": true,
+    "blinkEnabled": false,
     "vibrateEnabled": false,
     "clickEnabled": true,
     "sound": "assets/sounds/wood_sound.wav",
-    "presetsEnabled": false,
   };
   static final defPreset = Preset.toJSON(
     Preset(
@@ -71,7 +70,7 @@ class ChronosConstants {
 }
 
 class LoadingPage extends StatelessWidget {
-  const LoadingPage({Key? key}) : super(key: key);
+  const LoadingPage({super.key});
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
@@ -100,7 +99,7 @@ class Root extends StatelessWidget {
     return await Mnemosyne().awaken();
   }
 
-  const Root({Key? key}) : super(key: key);
+  const Root({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
         theme: ThemeData(
@@ -223,11 +222,10 @@ class Root extends StatelessWidget {
                       lazy: false,
                       create: (BuildContext context1) => Chronos(
                         context: context1,
-                        audioPlayers: snap.data!.audioPlayers,
                       ),
                     ),
                   ],
-                  child: Home(key: super.key),
+                  child: Homepage(key: super.key),
                 );
               }
 
@@ -240,7 +238,7 @@ class Root extends StatelessWidget {
 }
 
 class Home extends StatefulWidget {
-  const Home({Key? key}) : super(key: key);
+  const Home({super.key});
 
   @override
   State<StatefulWidget> createState() => _HomeState();
@@ -271,8 +269,9 @@ class _HomeState extends State<Home> {
     });
     return Scaffold(
       key: _scaffoldKey,
-      drawer: const SettingsDrawer(),
-      endDrawer: const PresetDrawer(),
+      // todo: use default drawer size, also use same background as SettingsDrawer looks nice
+      drawer: const PresetDrawer(),
+      // endDrawer: const SettingsDrawer(),
       onDrawerChanged: (open) {
         if (!open) {
           BlocProvider.of<Chronos>(context).start();
@@ -280,13 +279,13 @@ class _HomeState extends State<Home> {
           BlocProvider.of<Chronos>(context).stop();
         }
       },
-      onEndDrawerChanged: (open) {
-        if (!open) {
-          BlocProvider.of<Chronos>(context).start();
-        } else {
-          BlocProvider.of<Chronos>(context).stop();
-        }
-      },
+      // onEndDrawerChanged: (open) {
+      //   if (!open) {
+      //     BlocProvider.of<Chronos>(context).start();
+      //   } else {
+      //     BlocProvider.of<Chronos>(context).stop();
+      //   }
+      // },
       body: ColoredBox(
         // for setting color behind bottom bar
         color: Colors.black,
@@ -359,13 +358,13 @@ class _HomeState extends State<Home> {
                     children: [
                       /// bpm modifier and display
                       // rebuild when bpm changes
-                      BlocBuilder<Hermes, Preset>(
-                        buildWhen: (prev, curr) => prev.bpm != curr.bpm,
+                      BlocBuilder<Hermes, Preset?>(
+                        buildWhen: (prev, curr) => prev?.bpm != curr?.bpm,
                         builder: (context, preset) {
-                          if (_oldPreset?.key != preset.key ||
-                              _oldPreset?.bpm != preset.bpm ||
+                          if (_oldPreset?.key != preset?.key ||
+                              _oldPreset?.bpm != preset?.bpm ||
                               _bpmController.text.isEmpty) {
-                            _bpmController.text = preset.bpm.toString();
+                            _bpmController.text = preset?.bpm.toString() ?? "";
                           }
                           return Expanded(
                             child: Row(
@@ -432,7 +431,7 @@ class _HomeState extends State<Home> {
 
 /// [BeatIndicators] allows toggling enabled beat indicators
 class BeatIndicators extends StatelessWidget {
-  const BeatIndicators({Key? key}) : super(key: key);
+  const BeatIndicators({super.key});
 
   @override
   Widget build(BuildContext context) {

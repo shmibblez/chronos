@@ -13,7 +13,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 ///
 /// these options are independent from [Preset]s, which is why they're in separate drawers
 class SettingsDrawer extends StatefulWidget {
-  const SettingsDrawer({Key? key}) : super(key: key);
+  const SettingsDrawer({super.key});
 
   @override
   State<StatefulWidget> createState() => _SettingsDrawerState();
