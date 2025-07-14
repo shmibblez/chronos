@@ -2,6 +2,8 @@
 //  - when go to component that pauses metronome, when come back only resume if playing before
 //  - fix preset drawer (too tranparent, also drawer too wide (width at least space of 20 from right), 
 //    or make 4/5ths of width or something like that)
+//  - app icon
+//  - 
 
 import 'package:chronos/cubits/chronos.dart';
 import 'package:chronos/cubits/hermes.dart';

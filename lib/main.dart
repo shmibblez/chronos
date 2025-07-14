@@ -31,9 +31,6 @@ void main() {
 /// - #NaN (1) fix local preset list when adding new presets, also keep in sync better with db
 /// ChromosComstamts, some app constants
 ///
-/// FIXME: on initial load, preset loaded doesnt reflect actual
-/// default preset and only updates when drawer opened for
-/// first time
 /// FIXME: figure out how to setup android testing
 class ChronosConstants {
   static const TextStyle titleTextStyle = TextStyle(color: Colors.white, fontSize: 18);
