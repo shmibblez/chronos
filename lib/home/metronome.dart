@@ -99,7 +99,7 @@ class _Rays extends CustomPainter {
       ..color = Colors.white24
       ..strokeCap = StrokeCap.round
       ..strokeWidth = _2sw;
-    final double _cr = 6.0 * beatsPerBar + 6.0;
+    final double cr = 6.0 * beatsPerBar + 6.0;
     final double w = size.width;
     final double h = size.height;
     // stroke width
@@ -107,7 +107,7 @@ class _Rays extends CustomPainter {
     final double cx = w / 2;
     final double cy = h / 2;
     // line length
-    final double l = cx - _cr - _2sw / 2;
+    final double l = cx - cr - _2sw / 2;
     // changing variables
     double angle = 0;
     double angleOffset = 0;
@@ -135,8 +135,8 @@ class _Rays extends CustomPainter {
     for (int i = 0; i < beatsPerBar; i++) {
       angle = -2 * pi * i / beatsPerBar + angleOffset;
       // circle / start line coordinates
-      final double sx = cx + _cr * cos(angle);
-      final double sy = cy - _cr * sin(angle); // minus since y is flipped
+      final double sx = cx + cr * cos(angle);
+      final double sy = cy - cr * sin(angle); // minus since y is flipped
       // line end coordinates
       final double ex = sx + l * cos(angle);
       // minus since y is flipped

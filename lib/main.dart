@@ -36,6 +36,12 @@ void main() {
 /// first time
 /// FIXME: figure out how to setup android testing
 class ChronosConstants {
+  static const TextStyle titleTextStyle = TextStyle(color: Colors.white, fontSize: 18);
+  static const TextStyle secondaryTitleTextStyle = TextStyle(color: Colors.white54, fontSize: 18);
+  static const TextStyle primaryTextStyle = TextStyle(color: Colors.white, fontSize: 16);
+  static const TextStyle secondaryTextStyle = TextStyle(color: Colors.white54, fontSize: 16);
+  static const TextStyle actionTextStyle = TextStyle(color: Colors.red, fontSize: 16);
+  static const TextStyle smallTextStyle = TextStyle(color: Colors.white54, fontSize: 12);
   static const int maxNameLength = 100;
   static const int minNameLength = 0;
   static const int maxNotesLength = 750;
