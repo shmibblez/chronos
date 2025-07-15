@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:developer';
 
+import 'package:chronos/chronos_constants.dart';
 import 'package:chronos/cubits/mnemosyne.dart';
-import 'package:chronos/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 

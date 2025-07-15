@@ -78,7 +78,7 @@ class _Rays extends CustomPainter {
   // center space radius where bpm is displayed
   // static const double _cr = 8;
   static const double _sw = 16;
-  static const double _2sw = _sw * 2;
+  static const double _sw2 = _sw * 2;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -94,11 +94,11 @@ class _Rays extends CustomPainter {
     final bgPaint = Paint()
       ..color = Colors.black
       ..strokeCap = StrokeCap.round
-      ..strokeWidth = _2sw;
+      ..strokeWidth = _sw2;
     final activeBgPaint = Paint()
       ..color = Colors.white24
       ..strokeCap = StrokeCap.round
-      ..strokeWidth = _2sw;
+      ..strokeWidth = _sw2;
     final double cr = 6.0 * beatsPerBar + 6.0;
     final double w = size.width;
     final double h = size.height;
@@ -107,7 +107,7 @@ class _Rays extends CustomPainter {
     final double cx = w / 2;
     final double cy = h / 2;
     // line length
-    final double l = cx - cr - _2sw / 2;
+    final double l = cx - cr - _sw2 / 2;
     // changing variables
     double angle = 0;
     double angleOffset = 0;

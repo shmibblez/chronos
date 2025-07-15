@@ -1,7 +1,6 @@
 import 'package:chronos/convenience_widgets.dart';
 import 'package:chronos/cubits/hephaestus.dart';
 import 'package:chronos/cubits/hermes.dart';
-import 'package:chronos/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -75,7 +74,7 @@ class _SettingsDrawerState extends State<SettingsDrawer> {
                         ),
                       ],
                     ),
-                    const BeatIndicators(),
+                    // const BeatIndicators(),
 
                     Divider(color: dividerColor),
 

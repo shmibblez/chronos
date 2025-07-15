@@ -1,9 +1,9 @@
 import 'dart:developer';
 
+import 'package:chronos/chronos_constants.dart';
 import 'package:chronos/convenience_widgets.dart';
 import 'package:chronos/cubits/hephaestus.dart';
 import 'package:chronos/cubits/hermes.dart';
-import 'package:chronos/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -230,9 +230,10 @@ class _PresetDrawerState extends State<PresetDrawer> {
     BlocProvider.of<Hermes>(context).loadLastPreset();
   }
 
-  void _onClickNewPreset() {
-    BlocProvider.of<Hermes>(context).loadNewPreset();
-  }
+  // todo: uncomment when add add button
+  // void _onClickNewPreset() {
+  //   BlocProvider.of<Hermes>(context).loadNewPreset();
+  // }
 
   Future<void> _onPresetDeleted() async {
     // active preset can be deleted (first list item)
@@ -497,6 +498,7 @@ class SliderHeaderController {
   }
 }
 
+// todo: reference when add add button functionality
 /// in charge of creating interface for preset list, and allowing its manipulation
 /// allows:
 /// - deletion of preset
@@ -512,7 +514,7 @@ class SliderHeader extends StatefulWidget {
     required this.controller,
   });
 
-  final _HeaderState state;
+  final HeaderState state;
   final void Function() action;
   final void Function() newPreset;
   final SliderHeaderController controller;
@@ -523,10 +525,10 @@ class SliderHeader extends StatefulWidget {
   }
 }
 
-enum _HeaderState { peeking, expanded }
+enum HeaderState { peeking, expanded }
 
 class _SliderHeaderState extends State<SliderHeader> {
-  late _HeaderState state;
+  late HeaderState state;
 
   @override
   void initState() {
@@ -535,12 +537,12 @@ class _SliderHeaderState extends State<SliderHeader> {
     state = widget.state;
     widget.controller._notifyExpanded = () {
       setState(() {
-        state = _HeaderState.expanded;
+        state = HeaderState.expanded;
       });
     };
     widget.controller._notifyPeeking = () {
       setState(() {
-        state = _HeaderState.peeking;
+        state = HeaderState.peeking;
       });
     };
   }
@@ -551,12 +553,12 @@ class _SliderHeaderState extends State<SliderHeader> {
     super.didUpdateWidget(oldWidget);
     widget.controller._notifyExpanded = () {
       setState(() {
-        state = _HeaderState.expanded;
+        state = HeaderState.expanded;
       });
     };
     widget.controller._notifyPeeking = () {
       setState(() {
-        state = _HeaderState.peeking;
+        state = HeaderState.peeking;
       });
     };
   }
@@ -574,7 +576,7 @@ class _SliderHeaderState extends State<SliderHeader> {
             alignment: Alignment.centerRight,
             child: IconButton(
               icon: Icon(
-                state == _HeaderState.peeking
+                state == HeaderState.peeking
                     ? Icons.keyboard_arrow_up
                     : Icons.close,
               ),

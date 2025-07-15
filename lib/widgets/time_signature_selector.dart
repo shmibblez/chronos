@@ -1,4 +1,4 @@
-import 'package:chronos/main.dart';
+import 'package:chronos/chronos_constants.dart';
 import 'package:chronos/widgets/number_picker.dart';
 import 'package:flutter/material.dart';
 
