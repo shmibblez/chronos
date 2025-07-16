@@ -55,11 +55,6 @@ class Mnemosyne {
                 database,
                 ChronosConstants.defPrefs,
               );
-          // default preset
-          await _presetStore!.record("default").put(
-                database,
-                ChronosConstants.defPreset,
-              );
         }
       },
     );
@@ -68,7 +63,7 @@ class Mnemosyne {
     var l = await lastPreset();
 
     // setup audio players
-    _updateAudioPlayers(l.beatsPerBar);
+    await _updateAudioPlayers(l.beatsPerBar);
     // todo: when support for more or custom sounds is added, load file to audio cache:
     //  audioPlayer?.audioCache = AudioCache();
     //  audioPlayer?.audioCache.load(fileName)
@@ -188,21 +183,41 @@ class Mnemosyne {
     return presets.toList();
   }
 
+  // todo: not working properly
+  // Future<void> onPause() async {
+  //   if (audioPlayers == null) return;
+  //   for (AudioPlayer ap in audioPlayers!) {
+  //     await ap.release();
+  //     await ap.dispose();
+  //   }
+  //   audioPlayers = null;
+  // }
+
+  // todo: not working properly
+  // Future<void> onResume(int bpb) async {
+  //   await _updateAudioPlayers(bpb);
+  // }
+
   Future<void> _updateAudioPlayers(int bpb) async {
     audioPlayers ??= List.empty(growable: true);
-      // if smaller add players
-    while (audioPlayers!.length < bpb) {
-      audioPlayers!.add(AudioPlayer());
-      await audioPlayers!.last.setReleaseMode(ReleaseMode.stop);
+    // if smaller add players
+    log("_updateAudioPlayers, new bpb: $bpb. length before changes: ${audioPlayers!.length}");
+    if (audioPlayers!.length < bpb) {
+      for (int i = audioPlayers!.length; i < bpb; i++) {
+        audioPlayers!.add(AudioPlayer());
+        await audioPlayers!.last.setReleaseMode(ReleaseMode.stop);
+      }
     }
-    if (audioPlayers!.length > bpb - 1) {
+    log("_updateAudioPlayers, new bpb: $bpb. length after adding: ${audioPlayers!.length}");
+    if (audioPlayers!.length > bpb) {
       // for sublist, start inclusive, end exclusive
       final removed = audioPlayers!.sublist(bpb, audioPlayers!.length);
-      audioPlayers = audioPlayers!.sublist(0,bpb);
+      audioPlayers = audioPlayers!.sublist(0, bpb);
       for (final ap in removed) {
         await ap.dispose();
       }
     }
+    log("_updateAudioPlayers, new bpb: $bpb. length after removing: ${audioPlayers!.length}");
   }
 
   /// send update to db with values given

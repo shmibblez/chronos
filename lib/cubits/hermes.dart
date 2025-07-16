@@ -1,3 +1,5 @@
+// ignore_for_file: non_constant_identifier_names
+
 import 'dart:async';
 import 'dart:developer';
 
@@ -149,7 +151,7 @@ class Preset {
 
   static Map newPresetJSON() => {
         "name": "",
-        "sig": "100|4/4",
+        "sig": "${ChronosConstants.defaultBPM}|4/4",
         "millis": DateTime.now().millisecondsSinceEpoch,
         "notes": "",
       };
@@ -278,11 +280,14 @@ class Hermes extends Cubit<Preset?> {
 class PresetList extends StatefulWidget {
   const PresetList({
     super.key,
-    required this.delete,
-    // this.controller,
+    required this.onAddPreset,
+    required this.onDelete,
+    required this.onSelectPreset,
   });
-  final void Function(Preset) delete;
-  // final ScrollController? controller;
+
+  final void Function() onAddPreset;
+  final void Function(Preset) onDelete;
+  final void Function() onSelectPreset;
 
   @override
   State<StatefulWidget> createState() => _PresetListState();
@@ -294,6 +299,7 @@ class _PresetListState extends State<PresetList> {
   late StreamSubscription<Preset?> _presetStream;
 
   List<Preset> get _presets => Mnemosyne().presets;
+
   @override
   void initState() {
     super.initState();
@@ -304,6 +310,7 @@ class _PresetListState extends State<PresetList> {
         // updates Mnemosyne list
       });
     });
+    log("PresetList.initState, presets size: ${_presets.length} _presets: $_presets");
     // _presetStream = BlocProvider.of<Hermes>(context).stream.listen((event) {
     //   // index of updated preset
     //   int i = _presets.indexWhere((element) => element.key == event.key);
@@ -326,10 +333,77 @@ class _PresetListState extends State<PresetList> {
     super.dispose();
   }
 
+  Widget _AddPresetButton() {
+    return OutlinedButton(
+      onPressed: widget.onAddPreset,
+      child: Text(
+        "add new preset",
+        style: ChronosConstants.normalTextStyle,
+      ),
+    );
+  }
+
+  Widget _Preset(Preset preset) {
+    return ListTile(
+      contentPadding: EdgeInsets.all(0),
+      title: Text(
+        preset.name.isEmpty ? "(unnamed preset)" : preset.name,
+        style: ChronosConstants.normalTextStyle,
+        maxLines: 1,
+      ),
+      subtitle: Text(
+        "bpm: ${preset.bpm}, time sig: ${preset.beatsPerBar} / ${preset.barNote}",
+        style: ChronosConstants.secondarySmallTextStyle,
+        maxLines: 1,
+      ),
+      onTap: () {
+        _presetSelected(context, preset);
+      },
+      trailing: IconButton(
+        icon: const Icon(
+          Icons.delete_rounded,
+          color: Colors.white,
+        ),
+        onPressed: () {
+          // #10
+          _presetDeleted(context, preset);
+        },
+      ),
+    );
+  }
+
+  Widget _LoadingItem() {
+    return SizedBox(
+      width: double.maxFinite,
+      child: const Text(
+        "loading...",
+        style: ChronosConstants.secondarySmallTextStyle,
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.topCenter,
+    // Mobile:
+    // Width = Screen width − 56 dp
+    // Maximum width: 320dp
+    // Maximum width applies only when using a left nav. When using a right nav,
+    // the panel can cover the full width of the screen.
+    // Desktop/Tablet:
+    // Maximum width for a left nav is 400dp.
+    // The right nav can vary depending on content.
+    // final screenW = MediaQuery.of(context).size.width;
+    // final w = min((screenW * (2 / 3)).truncate().toDouble(), 304.0);
+    // rebuild when relevant app settings change
+    final w = MediaQuery.of(context).size.width * 4 / 5;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: Colors.black.withAlpha((255.0 * 0.75).toInt()),
+      height: double.infinity,
+      width: w,
+      alignment: AlignmentDirectional.topStart,
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         primary: false,
@@ -338,57 +412,20 @@ class _PresetListState extends State<PresetList> {
         itemCount: 1 + _presets.length + 1,
         itemBuilder: (_, i) {
           if (i == 0) {
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // no existing presets item
-                  if (_presets.isEmpty) ...[
-                    const Text("no presets yet", textAlign: TextAlign.center)
-                  ],
-                  // add preset item
-                  OutlinedButton(
-                    onPressed: () {
-                      // todo: show left drawer
-                    },
-                    child: Text("add preset"),
-                  )
-                ],
-              ),
-            );
-          }
-          if (i >= _presets.length) {
-            // no more text item
-            if (_noMore) {
-              return Container(
-                padding: const EdgeInsets.all(16),
-                child: const Text("no more items", textAlign: TextAlign.center),
-              );
-            }
-            // load some presets if at end of list
+            /// first item is add new preset option
+            return _AddPresetButton();
+          } else if (i - 1 >= _presets.length) {
+            /// loading item
+
+            // if already attempted load and no more items, return
+            if (_noMore) return null;
+            // if at end of list then loading item
             _loadPresets(context);
-            return Container(
-              padding: const EdgeInsets.all(16),
-              child: const Text("loading...", textAlign: TextAlign.center),
-            );
+            return _LoadingItem();
           }
-          String title = _presets[i].name;
-          return ListTile(
-            title: Text(title.isEmpty ? "new preset" : title),
-            subtitle: Text(
-                "bpm: ${_presets[i].bpm}, key: ${_presets[i].key.substring(_presets[i].key.length - 4)}"),
-            onTap: () {
-              _presetSelected(context, i);
-            },
-            trailing: IconButton(
-              icon: const Icon(Icons.delete_forever),
-              onPressed: () {
-                // #10
-                _presetDeleted(context, _presets[i]);
-              },
-            ),
-          );
+
+          /// else show preset
+          return _Preset(_presets[i - 1]);
         },
       ),
     );
@@ -407,27 +444,29 @@ class _PresetListState extends State<PresetList> {
     });
   }
 
-  void _presetSelected(BuildContext context, int i) async {
+  void _presetSelected(BuildContext context, Preset p) async {
     // Hermes tells Mnemosyne and she updates list
     // must complete before setting state
-    log("preset at index $i selected");
+    log("preset selected, title: ${p.name}, key: ${p.key}");
     await BlocProvider.of<Hermes>(context).selectPreset(
-      _presets[i],
+      p,
       DateTime.now().millisecondsSinceEpoch,
     );
     // also updates list shown
     setState(() {
       // updates list
     });
+    widget.onSelectPreset();
   }
 
   void _presetDeleted(BuildContext context, Preset p) async {
     // Preset p = _presets.removeAt(i);
+    log("preset deleted, title: ${p.name}, key: ${p.key}");
     await BlocProvider.of<Hermes>(context).deletePreset(p);
     // also updates list shown
     setState(() {
       // does ui stuff
-      widget.delete(p);
+      widget.onDelete(p);
     });
   }
 }

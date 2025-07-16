@@ -1,20 +1,20 @@
 // todo: stuff to fix:
 //  - when go to component that pauses metronome, when come back only resume if playing before
-//  - fix preset drawer (too tranparent, make 4/5ths of width or something like that)
-//  - add play / pause button at the top, don't start playing automatically on startup
-//  - move chronos timer, audio & vibrate to its own thread
-//  - add trash icon to delete at the top, when delete requested show dialog to confirm
-//  - make
-//  - create add button at the top for preset list
+//  - organize icons in the following manner:
+//    - menu & settings left, indicators center (move play/pause to right), question mark & delete at the end
+//  - show delete dialog when delete requested (from preset drawer & homepage)
+//  - when exit app on android metronome keeps playing, stops playing audio when return (not closed, just exit & return)
 
 import 'package:chronos/chronos_constants.dart';
 import 'package:chronos/cubits/chronos.dart';
+import 'package:chronos/cubits/hephaestus.dart';
 import 'package:chronos/cubits/hermes.dart';
 import 'package:chronos/home/metronome.dart';
 import 'package:chronos/home/top_icons.dart';
 import 'package:chronos/preset_drawer.dart';
 import 'package:chronos/widgets/text_editor.dart';
 import 'package:chronos/widgets/time_signature_selector.dart';
+import 'package:chronos/zeus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -27,7 +27,7 @@ class Homepage extends StatefulWidget {
   }
 }
 
-class HomepageState extends State {
+class HomepageState extends State with WidgetsBindingObserver {
   // val
   final TextStyle textStyle = TextStyle(color: Colors.white, fontSize: 14);
   // scaffold
@@ -78,12 +78,46 @@ class HomepageState extends State {
     super.initState();
   }
 
+  // todo: hacky, how to pause audio when exit, and resume when return?
+  // @override
+  // void didChangeAppLifecycleState(AppLifecycleState state) {
+  //   void pause() {
+  //     BlocProvider.of<Chronos>(context).stop();
+  //     Mnemosyne().onPause();
+  //   }
+
+  //   void resume() {
+  //     final bpb = BlocProvider.of<Hermes>(context).state?.beatsPerBar;
+  //     if (bpb != null) {
+  //       Mnemosyne().onResume(bpb);
+  //     }
+  //   }
+
+  //   switch (state) {
+  //     case AppLifecycleState.paused:
+  //       pause();
+  //       break;
+  //     case AppLifecycleState.resumed:
+  //       resume();
+  //       break;
+  //     case AppLifecycleState.hidden:
+  //       pause();
+  //       break;
+  //     default:
+  //   }
+  //   super.didChangeAppLifecycleState(state);
+  // }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       key: _scaffoldKey,
-      drawer: const PresetDrawer(),
+      drawer: PresetDrawer(
+        onDismiss: () {
+          _scaffoldKey.currentState?.closeDrawer();
+        },
+      ),
       // endDrawer: const SettingsDrawer(),
       onDrawerChanged: (open) {
         if (!open) {
@@ -92,250 +126,431 @@ class HomepageState extends State {
           BlocProvider.of<Chronos>(context).stop();
         }
       },
-      body: SizedBox(
-        width: double.maxFinite,
-        // height: MediaQuery.of(context).size.height,
-        child: GestureDetector(
-          // on tap toggle metronome click -> play/pause
-          onTap: () {
-            BlocProvider.of<Chronos>(context).togglePlaying();
-          },
-          // change tempo based on scroll amount
-          // positive amount is down (tempo decrease)
-          // negative amount is up (tempo increase)
-          onVerticalDragUpdate: (DragUpdateDetails details) {
-            _updateBpm(-details.delta.dy);
-          },
-          onHorizontalDragUpdate: (details) {
-            if (details.delta.dx > 0) {
-              // if swipe right, open drawer
-              _scaffoldKey.currentState?.openDrawer();
-            }
-          },
-          child: Padding(
-            padding: EdgeInsetsGeometry.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.max,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 12,
-              children: [
-                TopIcons(
-                  openDrawer: () {
-                    _scaffoldKey.currentState?.openDrawer();
-                  },
-                ),
+      body: Stack(
+        children: [
+          // blink background
+          BlocBuilder<Hephaestus, Toolbox>(
+            buildWhen: (prev, curr) => prev.blinkEnabled != curr.blinkEnabled,
+            builder: (_, tb) {
+              return tb.blinkEnabled ? Zeus() : Container();
+            },
+          ),
+          // buttons an stuff (main layout)
+          SizedBox(
+            width: double.maxFinite,
+            height: double.maxFinite, // MediaQuery.of(context).size.height,
+            child: GestureDetector(
+              // on tap toggle metronome click -> play/pause
+              onTap: () {
+                BlocProvider.of<Chronos>(context).togglePlaying();
+              },
+              // change tempo based on scroll amount
+              // positive amount is down (tempo decrease)
+              // negative amount is up (tempo increase)
+              onVerticalDragUpdate: (DragUpdateDetails details) {
+                _updateBpm(-details.delta.dy);
+              },
+              onHorizontalDragUpdate: (details) {
+                if (details.delta.dx > 0) {
+                  // if swipe right, open drawer
+                  _scaffoldKey.currentState?.openDrawer();
+                }
+              },
+              child: Padding(
+                padding: EdgeInsetsGeometry.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.max,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 12,
+                  children: [
+                    TopIcons(
+                      openDrawer: () {
+                        _scaffoldKey.currentState?.openDrawer();
+                      },
+                    ),
 
-                /// todo: use old code below for input formatting & saving new title
-                // /// preset title
-                // Row(
-                //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                //   children: [
-                //     BlocBuilder<Hermes, Preset?>(
-                //       buildWhen: (prev, curr) => prev?.name != curr?.name,
-                //       builder: (context, preset) {
-                //         if (_oldPresetKey != preset?.key ||
-                //             _nameController.text.isEmpty) {
-                //           _nameController.text = preset?.name ?? "";
-                //         }
-                //         return Expanded(
-                //           child: Row(
-                //             children: [
-                //               Expanded(
-                //                 child: TextField(
-                //                   focusNode: _nameFocusNode,
-                //                   enabled: true,
-                //                   maxLength: ChronosConstants.maxNameLength,
-                //                   readOnly: false,
-                //                   style: textStyle,
-                //                   textAlign: TextAlign.start,
-                //                   controller: _nameController,
-                //                   inputFormatters: [
-                //                     FilteringTextInputFormatter
-                //                         .singleLineFormatter,
-                //                   ],
-                //                   // onSubmitted:: _saveName,
-                //                   decoration: InputDecoration(
-                //                     hintStyle: textStyle,
-                //                     hintText: "Preset Name",
-                //                   ),
-                //                 ),
-                //               ),
-                //               // default preset cannot be deleted
-                //               IconButton(
-                //                 onPressed: () async {
-                //                   if (preset != null) {
-                //                     await BlocProvider.of<Hermes>(context)
-                //                         .deletePreset(preset);
-                //                     _onPresetDeleted();
-                //                   }_onPresetDeleted
-                //                 },
-                //                 icon: Icon(
-                //                   Icons.delete_forever,
-                //                   color: Colors.white,
-                //                 ),
-                //               )
-                //             ],
-                //           ),
-                //         );
-                //       },
-                //     ),
-                //   ],
-                // ),
+                    /// todo: use old code below for input formatting & saving new title
+                    // /// preset title
+                    // Row(
+                    //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    //   children: [
+                    //     BlocBuilder<Hermes, Preset?>(
+                    //       buildWhen: (prev, curr) => prev?.name != curr?.name,
+                    //       builder: (context, preset) {
+                    //         if (_oldPresetKey != preset?.key ||
+                    //             _nameController.text.isEmpty) {
+                    //           _nameController.text = preset?.name ?? "";
+                    //         }
+                    //         return Expanded(
+                    //           child: Row(
+                    //             children: [
+                    //               Expanded(
+                    //                 child: TextField(
+                    //                   focusNode: _nameFocusNode,
+                    //                   enabled: true,
+                    //                   maxLength: ChronosConstants.maxNameLength,
+                    //                   readOnly: false,
+                    //                   style: textStyle,
+                    //                   textAlign: TextAlign.start,
+                    //                   controller: _nameController,
+                    //                   inputFormatters: [
+                    //                     FilteringTextInputFormatter
+                    //                         .singleLineFormatter,
+                    //                   ],
+                    //                   // onSubmitted:: _saveName,
+                    //                   decoration: InputDecoration(
+                    //                     hintStyle: textStyle,
+                    //                     hintText: "Preset Name",
+                    //                   ),
+                    //                 ),
+                    //               ),
+                    //               // default preset cannot be deleted
+                    //               IconButton(
+                    //                 onPressed: () async {
+                    //                   if (preset != null) {
+                    //                     await BlocProvider.of<Hermes>(context)
+                    //                         .deletePreset(preset);
+                    //                     _onPresetDeleted();
+                    //                   }_onPresetDeleted
+                    //                 },
+                    //                 icon: Icon(
+                    //                   Icons.delete_forever,
+                    //                   color: Colors.white,
+                    //                 ),
+                    //               )
+                    //             ],
+                    //           ),
+                    //         );
+                    //       },
+                    //     ),
+                    //   ],
+                    // ),
 
-                // preset title
-                BlocBuilder<Hermes, Preset?>(
-                  buildWhen: (prev, curr) => prev?.name != curr?.name,
-                  builder: (_, preset) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      spacing: 6,
-                      children: [
-                        // title
-                        Text(
-                          "preset title",
-                          style: ChronosConstants.smallTextStyle,
-                        ),
-                        // title
-                        GestureDetector(
-                          onTap: () {
-                            BlocProvider.of<Chronos>(context).stop();
-                            showModalBottomSheet<dynamic>(
-                              isScrollControlled: true,
-                              context: context,
-                              builder: (_) {
-                                return TextEditor(
-                                  title: "edit preset title",
-                                  onDismiss: () {
-                                    Navigator.pop(context);
-                                    BlocProvider.of<Chronos>(context).start();
+                    // preset title
+                    BlocBuilder<Hermes, Preset?>(
+                      buildWhen: (prev, curr) => prev?.name != curr?.name,
+                      builder: (_, preset) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          spacing: 6,
+                          children: [
+                            // title
+                            Text(
+                              "preset title",
+                              style: ChronosConstants.secondarySmallTextStyle,
+                            ),
+                            // title
+                            GestureDetector(
+                              onTap: () {
+                                BlocProvider.of<Chronos>(context).stop();
+                                showModalBottomSheet<dynamic>(
+                                  isScrollControlled: true,
+                                  context: context,
+                                  builder: (_) {
+                                    return TextEditor(
+                                      title: "edit preset title",
+                                      onDismiss: () {
+                                        Navigator.pop(context);
+                                        BlocProvider.of<Chronos>(context)
+                                            .start();
+                                      },
+                                      onSave: (text) {
+                                        _saveName(text);
+                                        Navigator.pop(context);
+                                        BlocProvider.of<Chronos>(context)
+                                            .start();
+                                      },
+                                      initialText: preset?.name ?? "",
+                                      textValidator: (text) {
+                                        if (text.length >
+                                            ChronosConstants.maxNameLength) {
+                                          return "text too long";
+                                        } else if (text.length <
+                                            ChronosConstants.minNameLength) {
+                                          return "text must have at least ${ChronosConstants.minNameLength} characters";
+                                        }
+                                        return null;
+                                      },
+                                    );
                                   },
-                                  onSave: (text) {
-                                    _saveName(text);
-                                    Navigator.pop(context);
-                                    BlocProvider.of<Chronos>(context).start();
-                                  },
-                                  initialText: preset?.name ?? "",
-                                  textValidator: (text) {
-                                    if (text.length >
-                                        ChronosConstants.maxNameLength) {
-                                      return "text too long";
-                                    } else if (text.length <
-                                        ChronosConstants.minNameLength) {
-                                      return "text must have at least ${ChronosConstants.minNameLength} characters";
+                                ).whenComplete(
+                                  () {
+                                    if (context.mounted) {
+                                      BlocProvider.of<Chronos>(context).start();
                                     }
-                                    return null;
                                   },
                                 );
                               },
-                            ).whenComplete(
-                              () {
-                                if (context.mounted) {
-                                  BlocProvider.of<Chronos>(context).start();
-                                }
-                              },
-                            );
-                          },
-                          child: Container(
-                            padding: EdgeInsets.all(12),
-                            width: double.maxFinite,
-                            alignment: AlignmentDirectional.centerStart,
-                            decoration: BoxDecoration(
-                              border: BoxBorder.all(
-                                color: Colors.white70,
-                                style: BorderStyle.solid,
+                              child: Container(
+                                padding: EdgeInsets.all(12),
+                                width: double.maxFinite,
+                                alignment: AlignmentDirectional.centerStart,
+                                decoration: BoxDecoration(
+                                  // color: Colors.black,
+                                  border: BoxBorder.all(
+                                    color: Colors.white70,
+                                    style: BorderStyle.solid,
+                                  ),
+                                  borderRadius:
+                                      BorderRadius.all(Radius.circular(4)),
+                                ),
+                                child: Text(
+                                  (preset != null && preset.name.isNotEmpty)
+                                      ? preset.name
+                                      : "Preset Title (Click to edit)",
+                                  style: (preset?.name ?? "").isNotEmpty
+                                      ? ChronosConstants.titleTextStyle
+                                      : ChronosConstants
+                                          .secondaryTitleTextStyle,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.start,
+                                ),
                               ),
-                              borderRadius:
-                                  BorderRadius.all(Radius.circular(4)),
                             ),
-                            child: Text(
-                              (preset != null && preset.name.isNotEmpty)
-                                  ? preset.name
-                                  : "Preset Title (Click to edit)",
-                              style: (preset?.name ?? "").isNotEmpty
-                                  ? ChronosConstants.titleTextStyle
-                                  : ChronosConstants.secondaryTitleTextStyle,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.start,
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                          ],
+                        );
+                      },
+                    ),
 
-                /// beat indicator provided by the sun god
-                Helios(),
+                    /// beat indicator provided by the sun god
+                    Helios(),
 
-                // bpm & time signature
-                BlocBuilder<Hermes, Preset?>(
-                  buildWhen: (prev, curr) =>
-                      prev?.bpm != curr?.bpm ||
-                      prev?.beatsPerBar != curr?.beatsPerBar ||
-                      prev?.barNote != curr?.barNote,
-                  builder: (_, preset) {
-                    final bpbText = preset?.beatsPerBar == null
-                        ? "  "
-                        : preset!.beatsPerBar < 10
-                            ? " ${preset.beatsPerBar}"
-                            : "${preset.beatsPerBar}";
-                    final bnText = preset?.barNote == null
-                        ? "  "
-                        : preset!.barNote < 10
-                            ? "${preset.barNote} "
-                            : "${preset.barNote}";
+                    // bpm & time signature
+                    BlocBuilder<Hermes, Preset?>(
+                      buildWhen: (prev, curr) =>
+                          prev?.bpm != curr?.bpm ||
+                          prev?.beatsPerBar != curr?.beatsPerBar ||
+                          prev?.barNote != curr?.barNote,
+                      builder: (_, preset) {
+                        final bpbText = preset?.beatsPerBar == null
+                            ? "  "
+                            : preset!.beatsPerBar < 10
+                                ? " ${preset.beatsPerBar}"
+                                : "${preset.beatsPerBar}";
+                        final bnText = preset?.barNote == null
+                            ? "  "
+                            : preset!.barNote < 10
+                                ? "${preset.barNote} "
+                                : "${preset.barNote}";
 
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Spacer(),
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Spacer(),
 
-                        // bpm
-                        Expanded(
-                          flex: 2,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            spacing: 6,
-                            children: [
-                              // title
-                              Text(
-                                "bpm",
-                                style: ChronosConstants.smallTextStyle,
+                            // bpm
+                            Expanded(
+                              flex: 2,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                spacing: 6,
+                                children: [
+                                  // title
+                                  Text(
+                                    "bpm",
+                                    style: ChronosConstants
+                                        .secondarySmallTextStyle,
+                                  ),
+                                  // bpm
+                                  GestureDetector(
+                                    onTap: () {
+                                      BlocProvider.of<Chronos>(context).stop();
+                                      showModalBottomSheet<dynamic>(
+                                        isScrollControlled: true,
+                                        context: context,
+                                        builder: (_) {
+                                          return TextEditor(
+                                            title: "edit bpm",
+                                            onDismiss: () {
+                                              Navigator.pop(context);
+                                              BlocProvider.of<Chronos>(context)
+                                                  .start();
+                                            },
+                                            onSave: (text) {
+                                              _saveBPM(text);
+                                              Navigator.pop(context);
+                                              BlocProvider.of<Chronos>(context)
+                                                  .start();
+                                            },
+                                            numbersOnly: true,
+                                            initialText:
+                                                "${preset?.bpm ?? ChronosConstants.defaultBPM}",
+                                            textValidator: (text) {
+                                              if (int.parse(text) >
+                                                  ChronosConstants.maxBPM) {
+                                                return "max bpm is ${ChronosConstants.maxBPM}";
+                                              } else if (int.parse(text) <
+                                                  ChronosConstants.minBPM) {
+                                                return "min bpm is ${ChronosConstants.minBPM}";
+                                              }
+                                              return null;
+                                            },
+                                          );
+                                        },
+                                      ).whenComplete(() {
+                                        if (context.mounted) {
+                                          BlocProvider.of<Chronos>(context)
+                                              .start();
+                                        }
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: EdgeInsets.all(12),
+                                      width: double.maxFinite,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        border: BoxBorder.all(
+                                          color: Colors.white70,
+                                          style: BorderStyle.solid,
+                                        ),
+                                        borderRadius: BorderRadius.all(
+                                            Radius.circular(4)),
+                                      ),
+                                      child: Text("${preset?.bpm ?? ""}",
+                                          style: textStyle),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              // bpm
-                              GestureDetector(
+                            ),
+
+                            Spacer(),
+
+                            // time signature
+                            Expanded(
+                              flex: 2,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                spacing: 6,
+                                children: [
+                                  // title
+                                  Text(
+                                    "time signature",
+                                    style: ChronosConstants
+                                        .secondarySmallTextStyle,
+                                  ),
+                                  // time signature
+                                  GestureDetector(
+                                    onTap: () {
+                                      BlocProvider.of<Chronos>(context).stop();
+                                      showModalBottomSheet<dynamic>(
+                                          isScrollControlled: true,
+                                          context: context,
+                                          builder: (_) {
+                                            return TimeSignatureSelector(
+                                              initialBeatsPerBar:
+                                                  preset?.beatsPerBar ?? 4,
+                                              initialBarNote:
+                                                  preset?.barNote ?? 4,
+                                              onDismiss: () {
+                                                Navigator.pop(context);
+                                                BlocProvider.of<Chronos>(
+                                                        context)
+                                                    .start();
+                                              },
+                                              onTimeSignatureSaved: (bpb, bn) {
+                                                Navigator.pop(context);
+                                                BlocProvider.of<Chronos>(
+                                                        context)
+                                                    .start();
+                                                BlocProvider.of<Hermes>(context)
+                                                    .updateBeatsPerBar(bpb);
+                                                BlocProvider.of<Hermes>(context)
+                                                    .updateBarNote(bn);
+                                              },
+                                            );
+                                          }).whenComplete(() {
+                                        if (context.mounted) {
+                                          BlocProvider.of<Chronos>(context)
+                                              .start();
+                                        }
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: EdgeInsets.all(12),
+                                      width: double.maxFinite,
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        border: BoxBorder.all(
+                                          color: Colors.white70,
+                                        ),
+                                        borderRadius: BorderRadius.all(
+                                            Radius.circular(4)),
+                                      ),
+                                      child: Text("$bpbText / $bnText",
+                                          style: textStyle),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            Spacer(),
+                          ],
+                        );
+                      },
+                    ),
+
+                    // notes section
+                    BlocBuilder<Hermes, Preset?>(
+                      buildWhen: (prev, curr) => prev?.notes != curr?.notes,
+                      builder: (_, preset) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          spacing: 6,
+                          children: [
+                            // title
+                            Text(
+                              "notes",
+                              style: ChronosConstants.secondarySmallTextStyle,
+                            ),
+                            // notes
+                            Container(
+                              padding: EdgeInsets.all(12),
+                              width: double.maxFinite,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                border: BoxBorder.all(
+                                  color: Colors.white70,
+                                  style: BorderStyle.solid,
+                                ),
+                                borderRadius:
+                                    BorderRadius.all(Radius.circular(4)),
+                              ),
+                              child: GestureDetector(
                                 onTap: () {
                                   BlocProvider.of<Chronos>(context).stop();
                                   showModalBottomSheet<dynamic>(
                                     isScrollControlled: true,
                                     context: context,
                                     builder: (_) {
+                                      //  in this case make fill max height since notes can get pretty big
                                       return TextEditor(
-                                        title: "edit bpm",
+                                        title: "edit notes",
                                         onDismiss: () {
                                           Navigator.pop(context);
                                           BlocProvider.of<Chronos>(context)
                                               .start();
                                         },
                                         onSave: (text) {
-                                          _saveBPM(text);
+                                          _saveNotes(text);
                                           Navigator.pop(context);
                                           BlocProvider.of<Chronos>(context)
                                               .start();
                                         },
-                                        numbersOnly: true,
-                                        initialText:
-                                            "${preset?.bpm ?? ChronosConstants.defaultBPM}",
+                                        initialText: preset?.notes ?? "",
                                         textValidator: (text) {
-                                          if (int.parse(text) >
-                                              ChronosConstants.maxBPM) {
+                                          if (text.length >
+                                              ChronosConstants.maxNotesLength) {
                                             return "max bpm is ${ChronosConstants.maxBPM}";
-                                          } else if (int.parse(text) <
-                                              ChronosConstants.minBPM) {
+                                          } else if (text.length <
+                                              ChronosConstants.minNotesLength) {
                                             return "min bpm is ${ChronosConstants.minBPM}";
                                           }
                                           return null;
@@ -348,201 +563,48 @@ class HomepageState extends State {
                                     }
                                   });
                                 },
-                                child: Container(
-                                  padding: EdgeInsets.all(12),
-                                  width: double.maxFinite,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    border: BoxBorder.all(
-                                      color: Colors.white70,
-                                      style: BorderStyle.solid,
+                                // notes text & view icon
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  spacing: 12,
+                                  children: [
+                                    // notes text
+                                    Expanded(
+                                      child: Text(
+                                        (preset != null &&
+                                                preset.notes.isNotEmpty)
+                                            ? preset.notes
+                                            : "You can add notes here. I usually use them to save a song's bpm so i know how much arthritis awaits on my guitar.",
+                                        style: (preset?.notes ?? "").isNotEmpty
+                                            ? ChronosConstants.normalTextStyle
+                                            : ChronosConstants
+                                                .secondaryNormalTextStyle,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.start,
+                                      ),
                                     ),
-                                    borderRadius:
-                                        BorderRadius.all(Radius.circular(4)),
-                                  ),
-                                  child: Text("${preset?.bpm ?? ""}",
-                                      style: textStyle),
+                                    // view icon
+                                    GestureDetector(
+                                      onTap: () {
+                                        // todo: show notes viewer
+                                      },
+                                      child: Icon(Icons.visibility_rounded),
+                                    )
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-
-                        Spacer(),
-
-                        // time signature
-                        Expanded(
-                          flex: 2,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            spacing: 6,
-                            children: [
-                              // title
-                              Text(
-                                "time signature",
-                                style: ChronosConstants.smallTextStyle,
-                              ),
-                              // time signature
-                              GestureDetector(
-                                onTap: () {
-                                  BlocProvider.of<Chronos>(context).stop();
-                                  showModalBottomSheet<dynamic>(
-                                      isScrollControlled: true,
-                                      context: context,
-                                      builder: (_) {
-                                        return TimeSignatureSelector(
-                                          initialBeatsPerBar:
-                                              preset?.beatsPerBar ?? 4,
-                                          initialBarNote: preset?.barNote ?? 4,
-                                          onDismiss: () {
-                                            Navigator.pop(context);
-                                            BlocProvider.of<Chronos>(context)
-                                                .start();
-                                          },
-                                          onTimeSignatureSaved: (bpb, bn) {
-                                            Navigator.pop(context);
-                                            BlocProvider.of<Chronos>(context)
-                                                .start();
-                                            BlocProvider.of<Hermes>(context)
-                                                .updateBeatsPerBar(bpb);
-                                            BlocProvider.of<Hermes>(context)
-                                                .updateBarNote(bn);
-                                          },
-                                        );
-                                      }).whenComplete(() {
-                                    if (context.mounted) {
-                                      BlocProvider.of<Chronos>(context).start();
-                                    }
-                                  });
-                                },
-                                child: Container(
-                                  padding: EdgeInsets.all(12),
-                                  width: double.maxFinite,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    border: BoxBorder.all(
-                                      color: Colors.white70,
-                                    ),
-                                    borderRadius:
-                                        BorderRadius.all(Radius.circular(4)),
-                                  ),
-                                  child: Text("$bpbText / $bnText",
-                                      style: textStyle),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        Spacer(),
-                      ],
-                    );
-                  },
-                ),
-
-                // notes section
-                BlocBuilder<Hermes, Preset?>(
-                  buildWhen: (prev, curr) => prev?.notes != curr?.notes,
-                  builder: (_, preset) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      spacing: 6,
-                      children: [
-                        // title
-                        Text(
-                          "notes",
-                          style: ChronosConstants.smallTextStyle,
-                        ),
-                        // notes
-                        Container(
-                          padding: EdgeInsets.all(12),
-                          width: double.maxFinite,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            border: BoxBorder.all(
-                              color: Colors.white70,
-                              style: BorderStyle.solid,
                             ),
-                            borderRadius: BorderRadius.all(Radius.circular(4)),
-                          ),
-                          child: GestureDetector(
-                            onTap: () {
-                              BlocProvider.of<Chronos>(context).stop();
-                              showModalBottomSheet<dynamic>(
-                                isScrollControlled: true,
-                                context: context,
-                                builder: (_) {
-                                  //  in this case make fill max height since notes can get pretty big
-                                  return TextEditor(
-                                    title: "edit notes",
-                                    onDismiss: () {
-                                      Navigator.pop(context);
-                                      BlocProvider.of<Chronos>(context).start();
-                                    },
-                                    onSave: (text) {
-                                      _saveNotes(text);
-                                      Navigator.pop(context);
-                                      BlocProvider.of<Chronos>(context).start();
-                                    },
-                                    initialText: preset?.notes ?? "",
-                                    textValidator: (text) {
-                                      if (text.length >
-                                          ChronosConstants.maxNotesLength) {
-                                        return "max bpm is ${ChronosConstants.maxBPM}";
-                                      } else if (text.length <
-                                          ChronosConstants.minNotesLength) {
-                                        return "min bpm is ${ChronosConstants.minBPM}";
-                                      }
-                                      return null;
-                                    },
-                                  );
-                                },
-                              ).whenComplete(() {
-                                if (context.mounted) {
-                                  BlocProvider.of<Chronos>(context).start();
-                                }
-                              });
-                            },
-                            // notes text & view icon
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              spacing: 12,
-                              children: [
-                                // notes text
-                                Expanded(
-                                  child: Text(
-                                    (preset != null && preset.notes.isNotEmpty)
-                                        ? preset.notes
-                                        : "You can add notes here. I usually use them to save a song's bpm so i know how much arthritis awaits on my guitar.",
-                                    style: (preset?.notes ?? "").isNotEmpty
-                                        ? ChronosConstants.primaryTextStyle
-                                        : ChronosConstants.secondaryTextStyle,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.start,
-                                  ),
-                                ),
-                                // view icon
-                                GestureDetector(
-                                  onTap: () {
-                                    // todo: show notes viewer
-                                  },
-                                  child: Icon(Icons.visibility_rounded),
-                                )
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+                          ],
+                        );
+                      },
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

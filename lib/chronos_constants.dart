@@ -17,22 +17,39 @@ import 'package:flutter/material.dart';
 /// - #NaN (1) fix local preset list when adding new presets, also keep in sync better with db
 /// ChromosComstamts, some app constants
 ///
-/// FIXME: figure out how to setup android testing
 class ChronosConstants {
-  static const TextStyle titleTextStyle =
-      TextStyle(color: Colors.white, fontSize: 18);
-  static const TextStyle secondaryTitleTextStyle =
-      TextStyle(color: Colors.white54, fontSize: 18);
-  static const TextStyle primaryTextStyle =
-      TextStyle(color: Colors.white, fontSize: 16);
-  static const TextStyle secondaryTextStyle =
-      TextStyle(color: Colors.white54, fontSize: 16);
-  static const TextStyle actionTextStyle =
-      TextStyle(color: Colors.red, fontSize: 16);
-  static TextStyle secondaryActionTextStyle =
-      TextStyle(color: Colors.red.withAlpha(122), fontSize: 16);
-  static const TextStyle smallTextStyle =
-      TextStyle(color: Colors.white54, fontSize: 12);
+  static const TextStyle titleTextStyle = TextStyle(
+    color: Colors.white,
+    fontSize: 18,
+  );
+  static const TextStyle secondaryTitleTextStyle = TextStyle(
+    color: Colors.white54,
+    fontSize: 18,
+  );
+  static const TextStyle normalTextStyle = TextStyle(
+    color: Colors.white,
+    fontSize: 16,
+  );
+  static const TextStyle secondaryNormalTextStyle = TextStyle(
+    color: Colors.white54,
+    fontSize: 16,
+  );
+  static const TextStyle actionTextStyle = TextStyle(
+    color: Colors.red,
+    fontSize: 16,
+  );
+  static TextStyle secondaryActionTextStyle = TextStyle(
+    color: Colors.red.withAlpha(122),
+    fontSize: 16,
+  );
+  static const TextStyle smallTextStyle = TextStyle(
+    color: Colors.white54,
+    fontSize: 12,
+  );
+  static const TextStyle secondarySmallTextStyle = TextStyle(
+    color: Colors.white,
+    fontSize: 12,
+  );
   static const int maxNameLength = 100;
   static const int minNameLength = 0;
   static const int maxNotesLength = 750;
@@ -63,5 +80,94 @@ class ChronosConstants {
       millis: DateTime.now().millisecondsSinceEpoch,
       notes: "",
     ),
+  );
+  static final theme = ThemeData(
+    scaffoldBackgroundColor: Colors.black45,
+    colorScheme: const ColorScheme.dark(
+      primary: Colors.black,
+      secondary: Colors.red,
+      // inversePrimary: Colors.white,
+    ),
+    inputDecorationTheme: const InputDecorationTheme(
+      focusedBorder: UnderlineInputBorder(
+        borderSide: BorderSide(
+          width: 3,
+          color: Colors.red,
+        ),
+      ),
+    ),
+    textSelectionTheme: const TextSelectionThemeData(
+      cursorColor: Colors.white,
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+        style: TextButton.styleFrom(
+      backgroundColor: Colors.red,
+      textStyle: const TextStyle(color: Colors.white),
+    )),
+    // Define the default font family.
+    fontFamily: 'Arial',
+    // Define the default `TextTheme`. Use this to specify the default
+    // text styling for headlines, titles, bodies of text, and more.
+    textTheme: const TextTheme(
+      displayLarge: TextStyle(fontSize: 72.0, fontWeight: FontWeight.bold),
+      titleLarge: TextStyle(fontSize: 36.0, fontStyle: FontStyle.italic),
+      bodyMedium: TextStyle(fontSize: 14.0, fontFamily: 'Hind'),
+    ),
+    checkboxTheme: CheckboxThemeData(
+      fillColor:
+          WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+        if (states.contains(WidgetState.disabled)) {
+          return null;
+        }
+        if (states.contains(WidgetState.selected)) {
+          return Colors.red;
+        }
+        return null;
+      }),
+    ),
+    radioTheme: RadioThemeData(
+      fillColor:
+          WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+        if (states.contains(WidgetState.disabled)) {
+          return null;
+        }
+        if (states.contains(WidgetState.selected)) {
+          return Colors.red;
+        }
+        return null;
+      }),
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor:
+          WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+        if (states.contains(WidgetState.disabled)) {
+          return null;
+        }
+        if (states.contains(WidgetState.selected)) {
+          return Colors.red;
+        }
+        return null;
+      }),
+      trackColor: WidgetStateProperty.resolveWith<Color?>(
+        (Set<WidgetState> states) {
+          if (states.contains(WidgetState.disabled)) {
+            return null;
+          }
+          if (states.contains(WidgetState.selected)) {
+            return Colors.red;
+          }
+          return null;
+        },
+      ),
+    ),
+    // buttonTheme: const ButtonThemeData(
+    //   buttonColor: Colors.red,
+    //   highlightColor: Colors.red,
+    //   textTheme: ButtonTextTheme.accent,
+    //   splashColor: Colors.transparent,
+    //   focusColor: Colors.redAccent,
+    //   hoverColor: Colors.redAccent,
+    //   disabledColor: Colors.grey,
+    // ),
   );
 }

@@ -53,7 +53,7 @@ class _NumberPickerState extends State<NumberPicker> {
         if (widget.label != null) ...[
           Text(
             widget.label!,
-            style: ChronosConstants.primaryTextStyle,
+            style: ChronosConstants.normalTextStyle,
           )
         ],
         // number selector
@@ -82,7 +82,7 @@ class _NumberPickerState extends State<NumberPicker> {
                       : "${i + widget.min}",
                   style: _selectedIndex == i
                       ? ChronosConstants.actionTextStyle
-                      : ChronosConstants.primaryTextStyle,
+                      : ChronosConstants.normalTextStyle,
                 ),
               ),
             ),

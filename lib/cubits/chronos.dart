@@ -17,11 +17,10 @@ import 'package:vibration/vibration.dart';
 /// For case 2, wait until tick, then reset timer with new tempo
 class Chronos extends Cubit<int> {
   Chronos(
-      {required BuildContext context,
-      int first = 0,
-      initiallyPlaying = true})
+      {required BuildContext context, int first = 0, initiallyPlaying = false})
       : super(validateFirstBeat(
             first, BlocProvider.of<Hermes>(context).state?.beatsPerBar ?? 4)) {
+    playingStream = StreamController.broadcast();
     _periodDurationMs = 0;
     _lastPeriodResetMs = DateTime.now().millisecondsSinceEpoch;
     Preset? preset = BlocProvider.of<Hermes>(context).state;
@@ -38,7 +37,6 @@ class Chronos extends Cubit<int> {
         // update changed settings
         if (event?.beatsPerBar != _limit) {
           _limit = event?.beatsPerBar ?? 4;
-
         }
         if (_timerPeriod != event?.beatPeriod) {
           _timerPeriod = event?.beatPeriod ?? Duration.zero;
@@ -69,6 +67,7 @@ class Chronos extends Cubit<int> {
     // _timer?.clo();
     await _hermesSub.cancel();
     await _hephasestusSub.cancel();
+    await playingStream.close();
   }
 
   /// instance variables
@@ -83,10 +82,12 @@ class Chronos extends Cubit<int> {
   late Source _soundSource;
   late bool _clickEnabled;
   late bool _vibrateEnabled;
+  late StreamController<bool> playingStream;
 
   double get progress {
     return ((DateTime.now().millisecondsSinceEpoch - _lastPeriodResetMs) /
-        _periodDurationMs).clamp(0.0, 1.0);
+            _periodDurationMs)
+        .clamp(0.0, 1.0);
   }
 
   int get beatsPerBar {
@@ -141,6 +142,7 @@ class Chronos extends Cubit<int> {
   void start() {
     if (playing) return;
     _initTimer(_timerPeriod);
+    playingStream.add(true);
   }
 
   /// stop playing
@@ -149,6 +151,7 @@ class Chronos extends Cubit<int> {
     _timerSub?.pause();
     _timerSub?.cancel();
     _timerSub = null;
+    playingStream.add(false);
   }
 
   /// increment and emit beat #
